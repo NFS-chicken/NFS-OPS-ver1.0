@@ -1,0 +1,2348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>日本フライトサービス — 運航管理</title>
+<style>
+  :root{
+    --bg:#0a0a0b; --bg-2:#121214; --bg-3:#1a1a1e;
+    --line:#26262c; --line-2:#33333b;
+    --txt:#e8e8ec; --txt-dim:#9a9aa5; --txt-faint:#5f5f6b;
+    --accent:#3b82f6; --accent-2:#1d4ed8;
+    --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444; --purple:#a855f7;
+    --radius:10px; --shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic','Meiryo',sans-serif;
+    font-size:14px; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select,textarea{font-family:inherit;font-size:inherit}
+
+  #app{display:flex;min-height:100vh}
+  .sidebar{width:230px;background:var(--bg-2);border-right:1px solid var(--line);display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;z-index:50;transition:transform .25s ease}
+  .brand{padding:20px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .brand .logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff}
+  .brand .name{font-weight:700;font-size:13px;line-height:1.2}
+  .brand .name small{display:block;color:var(--txt-faint);font-weight:500;font-size:10px;letter-spacing:1px}
+
+  .nav{flex:1;overflow-y:auto;padding:10px 8px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--txt-dim);font-size:13px;font-weight:500;margin-bottom:2px;width:100%;text-align:left;transition:.15s}
+  .nav-item:hover{background:var(--bg-3);color:var(--txt)}
+  .nav-item.active{background:var(--accent);color:#fff}
+  .nav-item .ico{width:16px;text-align:center;font-size:14px}
+  .nav-sep{margin:14px 12px 6px;font-size:10px;letter-spacing:1.5px;color:var(--txt-faint);font-weight:600}
+
+  .sidebar-foot{padding:12px;border-top:1px solid var(--line)}
+  .user-chip{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;background:var(--bg-3)}
+  .avatar{width:28px;height:28px;border-radius:50%;background:var(--accent-2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#fff}
+  .user-chip .meta{flex:1;min-width:0}
+  .user-chip .meta b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .user-chip .meta span{font-size:10px;color:var(--txt-faint);letter-spacing:.5px}
+
+  .main{flex:1;margin-left:230px;min-width:0;display:flex;flex-direction:column}
+  .topbar{height:58px;border-bottom:1px solid var(--line);background:rgba(10,10,11,.85);backdrop-filter:blur(12px);position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:14px;padding:0 20px}
+  .topbar h1{font-size:15px;font-weight:600}
+  .topbar .sub{color:var(--txt-faint);font-size:12px}
+  .topbar .spacer{flex:1}
+  .hamburger{display:none;font-size:20px;padding:6px 10px;border-radius:8px}
+  .hamburger:hover{background:var(--bg-3)}
+  .content{padding:20px;flex:1;min-width:0;overflow-x:hidden}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;background:var(--bg-3);color:var(--txt);border:1px solid var(--line-2);transition:.15s;white-space:nowrap}
+  .btn:hover{background:#22222a;border-color:#444}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:var(--accent-2)}
+  .btn.danger{background:transparent;border-color:#5b1d1d;color:#f87171}
+  .btn.danger:hover{background:#2a1111}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--txt-dim)}
+  .btn.ghost:hover{background:var(--bg-3);color:var(--txt)}
+  .btn.sm{padding:5px 10px;font-size:12px}
+
+  .card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+  .card-h h3{font-size:13px;font-weight:600}
+  .card-h .hint{font-size:11px;color:var(--txt-faint)}
+
+  .cal-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px}
+  .cal-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .cal-toolbar .month{font-size:20px;font-weight:700;min-width:160px}
+  .cal-toolbar .filters{flex-wrap:wrap;min-width:0}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;min-width:980px}
+  .cal-dow{background:var(--bg-3);padding:10px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--txt-dim);letter-spacing:1px}
+  .cal-dow.sat{color:#60a5fa}
+  .cal-dow.sun{color:#f87171}
+  .cal-cell{background:var(--bg-2);min-height:150px;padding:8px;position:relative;cursor:pointer;transition:.12s;overflow:hidden;display:flex;flex-direction:column;gap:4px}
+  .cal-cell:hover{background:var(--bg-3)}
+  .cal-cell.other{opacity:.35}
+  .cal-cell.today{box-shadow:inset 0 0 0 2px var(--accent);background:#0f1622}
+  .cal-cell.sat{background:#0e1620}
+  .cal-cell.sun{background:#1a0e10}
+  .cal-date{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+  .cal-date .d{font-size:14px;font-weight:700;color:var(--txt-dim)}
+  .cal-cell.today .cal-date .d{color:var(--accent)}
+  .cal-cell.sat .cal-date .d{color:#60a5fa}
+  .cal-cell.sun .cal-date .d{color:#f87171}
+  .cal-date .count{font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:var(--bg-3);color:var(--txt-dim);border:1px solid var(--line-2)}
+  .cal-cell.today .cal-date .count{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .flight-chip{display:grid;grid-template-columns:auto 1fr;gap:6px;padding:5px 7px;border-radius:6px;margin-bottom:3px;background:var(--bg-3);border-left:3px solid var(--accent);font-size:11px;line-height:1.3;cursor:pointer;transition:.1s;overflow:hidden;align-items:center}
+  .flight-chip:hover{background:#22222a;transform:translateX(2px)}
+  .flight-chip .time{font-family:ui-monospace,monospace;font-weight:700;font-size:11.5px;color:#fff;white-space:nowrap}
+  .flight-chip .info{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .flight-chip .no{font-weight:700;font-size:10.5px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .flight-chip .rt{font-size:10px;color:var(--txt-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .flight-chip.delayed{border-left-color:var(--warn);background:#2a2210}
+  .flight-chip.delayed .time,.flight-chip.delayed .no{color:#fbbf24}
+  .flight-chip.cancelled{border-left-color:var(--danger);background:#1a0e0e;opacity:.65}
+  .flight-chip.cancelled .no{text-decoration:line-through}
+  .flight-chip.cancelled .time{color:#f87171}
+  .flight-chip.diverted{border-left-color:var(--purple);background:#231733}
+  .flight-chip.diverted .time,.flight-chip.diverted .no{color:#c084fc}
+  .flight-chip.ferry{border-left-color:#0d9488;background:#0b2323}
+  .flight-chip.ferry .time{color:#a7f3d0}
+  .cal-more{font-size:10px;color:var(--txt-faint);padding:3px 6px;text-align:center;background:var(--bg-3);border-radius:5px;margin-top:2px;cursor:pointer}
+  .cal-more:hover{color:var(--txt)}
+
+  .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .input,.select{background:var(--bg);border:1px solid var(--line-2);color:var(--txt);padding:6px 10px;border-radius:8px;font-size:12px;outline:none;transition:.15s;max-width:100%}
+  .input:focus,.select:focus{border-color:var(--accent)}
+  .input::placeholder{color:var(--txt-faint)}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;padding:9px 10px;font-size:11px;color:var(--txt-faint);font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tr:hover td{background:var(--bg-3)}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+  .table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+  .badge.scheduled{background:#0e2a4a;color:#60a5fa}
+  .badge.delayed{background:#3a2a08;color:#fbbf24}
+  .badge.cancelled{background:#3a0f0f;color:#f87171}
+  .badge.diverted{background:#2e1a3f;color:#c084fc}
+  .badge.active{background:#0d2e1a;color:#4ade80}
+  .badge.maintenance{background:#3a2a08;color:#fbbf24}
+  .badge.reserve{background:#0e2a4a;color:#60a5fa}
+  .badge.manager{background:#2e1a3f;color:#c084fc}
+  .badge.general{background:#26262c;color:#9a9aa5}
+  .badge.viewer{background:#26262c;color:#9a9aa5}
+  .badge.online{background:#0d2e1a;color:#4ade80}
+  .badge.offline{background:#3a0f0f;color:#f87171}
+  .badge.pending{background:#3a2a08;color:#fbbf24}
+  .badge.synced{background:#0d2e1a;color:#4ade80}
+  .badge.domestic{background:#0e2a4a;color:#60a5fa}
+  .badge.international{background:#2e1a3f;color:#c084fc}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+  .overlay.show{display:flex}
+  .modal{background:var(--bg-2);border:1px solid var(--line-2);border-radius:14px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow)}
+  .modal-h{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg-2);z-index:1}
+  .modal-h h3{font-size:15px;font-weight:600}
+  .modal-b{padding:20px}
+  .modal-f{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--bg-2)}
+
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:11px;color:var(--txt-dim);margin-bottom:5px;font-weight:600}
+  .field .input,.field .select{width:100%}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+  .delay-presets{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .delay-presets button{font-size:11px;padding:4px 8px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);color:var(--txt-dim)}
+  .delay-presets button:hover{background:#22222a;color:var(--txt)}
+
+  .preview-box{background:var(--bg-3);padding:12px;border-radius:8px;margin-bottom:14px;border:1px solid var(--line)}
+  .preview-box .pb-title{font-size:11px;color:var(--txt-faint);margin-bottom:8px}
+  .preview-box.warn{border-color:#5b3a08;background:#2a2210}
+  .preview-box.divert{border-color:#4a2a6a;background:#231733}
+
+  #toasts{position:fixed;top:16px;right:16px;z-index:200;display:flex;flex-direction:column;gap:8px}
+  .toast{background:var(--bg-3);border:1px solid var(--line-2);border-left:3px solid var(--accent);padding:11px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow);animation:slideIn .25s ease;max-width:340px}
+  .toast.ok{border-left-color:var(--ok)}
+  .toast.warn{border-left-color:var(--warn)}
+  .toast.err{border-left-color:var(--danger)}
+  @keyframes slideIn{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+
+  #login{position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px}
+  .login-card{width:100%;max-width:400px}
+  .login-card .brand{justify-content:center;border:none;padding:0 0 26px}
+  .login-card .brand .logo{width:46px;height:46px;font-size:17px;border-radius:12px}
+  .login-card .brand .name{font-size:16px}
+  .login-card .card{padding:24px}
+  .login-card .card h2{font-size:16px;margin-bottom:4px}
+  .login-card .card p.hint{font-size:12px;color:var(--txt-faint);margin-bottom:20px}
+  .login-card .btn{width:100%;justify-content:center;padding:10px}
+
+  .pw-gate{max-width:420px;margin:60px auto;text-align:center;background:var(--bg-2);border:1px solid var(--line);border-radius:14px;padding:32px 24px}
+  .pw-gate .lock-ico{font-size:36px;margin-bottom:14px}
+  .pw-gate h3{font-size:16px;margin-bottom:6px}
+  .pw-gate p{font-size:12px;color:var(--txt-faint);margin-bottom:20px}
+  .pw-gate .field{text-align:left}
+
+  .empty{text-align:center;padding:40px 20px;color:var(--txt-faint);font-size:13px}
+  .flex{display:flex;align-items:center;gap:8px}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .stat{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .stat .k{font-size:11px;color:var(--txt-faint);margin-bottom:6px}
+  .stat .v{font-size:26px;font-weight:700}
+  .lock-note{font-size:11px;color:var(--warn);margin-top:8px}
+  .info-note{font-size:11px;color:var(--txt-faint);margin-top:8px}
+  .readonly-note{background:#2a2210;border:1px solid #5b3a08;color:#fbbf24;padding:8px 12px;border-radius:8px;font-size:12px;margin-bottom:14px}
+
+  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:45;display:none}
+  .backdrop.show{display:block}
+
+  .ops-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .ops-header .date-label{font-size:18px;font-weight:700;min-width:150px}
+  .ops-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--txt-dim);margin-bottom:10px}
+  .ops-legend .item{display:flex;align-items:center;gap:5px}
+  .ops-legend .dot{width:12px;height:12px;border-radius:3px}
+
+  .gantt-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-2)}
+  .gantt{min-width:1400px;position:relative}
+  .gantt-row{display:grid;grid-template-columns:120px 1fr;border-bottom:1px solid var(--line);min-height:56px}
+  .gantt-row:last-child{border-bottom:none}
+  .gantt-row.header{background:var(--bg-3);min-height:34px;position:sticky;top:0;z-index:3}
+  .gantt-ac{padding:8px 10px;border-right:1px solid var(--line);background:var(--bg-2);display:flex;flex-direction:column;gap:2px;justify-content:center;position:sticky;left:0;z-index:2}
+  .gantt-ac b{font-size:12px;font-family:ui-monospace,monospace}
+  .gantt-ac span{font-size:10px;color:var(--txt-faint)}
+  .gantt-ac .loc{font-size:10px;color:var(--accent)}
+  .gantt-track{position:relative;background:var(--bg-2)}
+  .gantt-hour{position:absolute;top:0;bottom:0;border-left:1px solid #1e1e24;pointer-events:none}
+  .gantt-hour.major{border-left-color:#2e2e36}
+  .flight-bar{position:absolute;top:8px;height:32px;border-radius:6px;background:var(--accent);color:#fff;font-size:10.5px;display:flex;align-items:center;padding:0 6px;gap:5px;white-space:nowrap;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.08);transition:filter .12s;z-index:1;min-width:20px}
+  .flight-bar:hover{filter:brightness(1.15);z-index:4}
+  .flight-bar.delayed{background:var(--warn);color:#1a1a1a}
+  .flight-bar.cancelled{background:#3a0f0f;color:#f87171;text-decoration:line-through;opacity:.7}
+  .flight-bar.diverted{background:var(--purple);color:#fff}
+  .flight-bar.ferry{background:#0e6b6b;color:#a7f3d0;border-color:#0d9488}
+  .flight-bar .fb-no{font-weight:700}
+  .flight-bar .fb-rt{opacity:.85;font-size:10px}
+  .flight-bar .fb-time{opacity:.75;font-size:9.5px;margin-left:auto}
+  .gantt-hour-label{font-size:10px;color:var(--txt-faint);text-align:center;position:relative;height:34px;display:flex;align-items:center;justify-content:center}
+  .turnaround-gap{position:absolute;top:14px;height:20px;border-radius:3px;background:repeating-linear-gradient(45deg,#1e2a3a,#1e2a3a 4px,#0e1a2a 4px,#0e1a2a 8px);border:1px dashed #2a3a5a;z-index:0}
+  .turnaround-gap.tight{background:repeating-linear-gradient(45deg,#3a1e1e,#3a1e1e 4px,#2a0e0e 4px,#2a0e0e 8px);border-color:#5a2a2a}
+  .now-line{position:absolute;top:0;bottom:0;width:2px;background:var(--danger);z-index:5;pointer-events:none;opacity:.8}
+  .now-line::after{content:'NOW';position:absolute;top:2px;left:4px;font-size:9px;color:var(--danger);font-weight:700}
+
+  .log-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .log-actor{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--bg-3);border:1px solid var(--line-2);color:var(--txt-dim)}
+  .log-action{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#0e2a4a;color:#60a5fa}
+  .log-action.edit{background:#3a2a08;color:#fbbf24}
+  .log-action.delete{background:#3a0f0f;color:#f87171}
+  .log-action.login{background:#0d2e1a;color:#4ade80}
+  .log-action.logout{background:#26262c;color:#9a9aa5}
+  .log-action.maint{background:#2e1a3f;color:#c084fc}
+  .log-action.system{background:#0e2a4a;color:#60a5fa}
+  .log-detail{font-size:11.5px;color:var(--txt-dim)}
+  .log-time{font-family:ui-monospace,monospace;font-size:11px;color:var(--txt-faint)}
+
+  .tt-tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--line);padding-bottom:10px}
+  .tt-tab{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;background:var(--bg-3);color:var(--txt-dim);border:1px solid var(--line-2);transition:.15s}
+  .tt-tab:hover{background:#22222a;color:var(--txt)}
+  .tt-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tt-section{margin-bottom:22px}
+  .tt-section-h{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg-3);border-radius:8px;margin-bottom:10px;gap:10px;flex-wrap:wrap}
+  .tt-section-h .route{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;letter-spacing:.5px}
+  .tt-section-h .route .arrow{color:var(--accent)}
+  .tt-section-h .route .ap{font-family:ui-monospace,monospace;padding:2px 10px;border-radius:6px;background:var(--bg);border:1px solid var(--line-2)}
+  .tt-section-h .ac-info{font-size:11px;color:var(--txt-dim)}
+  .tt-section-h .ac-info b{color:var(--txt);font-family:ui-monospace,monospace}
+  .tt-grid{display:grid;grid-template-columns:80px 1fr 1fr 1fr 1fr 100px;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .tt-th{background:var(--bg-3);padding:8px 10px;font-size:10.5px;font-weight:700;color:var(--txt-faint);letter-spacing:1px;text-align:center}
+  .tt-td{background:var(--bg-2);padding:10px;font-size:12.5px;text-align:center;font-family:ui-monospace,monospace;transition:.12s}
+  .tt-td.flight-no{font-weight:700;color:var(--accent);font-size:13px}
+  .tt-td.time{font-weight:700;font-size:14px;color:#fff}
+  .tt-td.ta{font-size:11px;color:var(--warn)}
+  .tt-td.pair-start{border-top:2px solid var(--accent-2)}
+
+  .sync-status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt-dim);padding:2px 10px;border-radius:20px;background:var(--bg-3);border:1px solid var(--line-2)}
+  .sync-dot{width:8px;height:8px;border-radius:50%;background:var(--txt-faint)}
+  .sync-dot.online{background:var(--ok)}
+  .sync-dot.syncing{background:var(--warn);animation:pulse 1s infinite}
+  .sync-dot.offline{background:var(--danger)}
+  .sync-dot.error{background:var(--danger)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  @media (max-width:900px){
+    .sidebar{transform:translateX(-100%)}
+    .sidebar.open{transform:none}
+    .main{margin-left:0}
+    .hamburger{display:block}
+    .grid-2,.grid-3{grid-template-columns:1fr}
+    .row,.row-3{grid-template-columns:1fr}
+    .content{padding:14px}
+    .cal-grid{min-width:820px}
+    .gantt{min-width:1000px}
+    .gantt-row{grid-template-columns:100px 1fr}
+  }
+  @media (max-width:560px){
+    .cal-grid{min-width:760px}
+    .content{padding:10px}
+    .gantt{min-width:900px}
+    .gantt-row{grid-template-columns:90px 1fr}
+    .tt-tabs{flex-wrap:wrap}
+  }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-card">
+    <div class="brand">
+      <div class="logo">NF</div>
+      <div class="name">日本フライトサービス<small>運航管理システム</small></div>
+    </div>
+    <div class="card">
+      <h2>ログイン</h2>
+      <p class="hint">ユーザー名とパスワードを入力してください。</p>
+      <div class="field">
+        <label>ユーザー名</label>
+        <input class="input" id="loginUser" type="text" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label>パスワード</label>
+        <input class="input" id="loginPass" type="password" autocomplete="current-password" />
+      </div>
+      <button class="btn primary" onclick="doLogin()">サインイン</button>
+      <p class="info-note" id="loginSyncState" style="text-align:center;margin-top:14px">起動中…</p>
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="backdrop" id="backdrop" onclick="toggleSidebar(false)"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">NF</div>
+      <div class="name">日本フライトサービス<small>運航管理システム</small></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sidebar-foot">
+      <div class="user-chip">
+        <div class="avatar" id="userAvatar">A</div>
+        <div class="meta">
+          <b id="userName">—</b>
+          <span id="userRole">—</span>
+        </div>
+        <button class="btn ghost sm" onclick="doLogout()" title="ログアウト">⏻</button>
+      </div>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="hamburger" onclick="toggleSidebar()">☰</button>
+      <h1 id="pageTitle">ダッシュボード</h1>
+      <span class="sub" id="pageSub"></span>
+      <div class="spacer"></div>
+      <div class="sync-status" id="syncStatus">
+        <span class="sync-dot" id="syncDot"></span>
+        <span id="syncText">接続中…</span>
+      </div>
+    </header>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+/* ============================================================
+   バージョン管理
+   ============================================================ */
+const APP_VERSION = '2026-10-11-v12';
+const VER_KEY = 'nfs_version';
+try{
+  const saved = localStorage.getItem(VER_KEY);
+  if(saved !== APP_VERSION){
+    localStorage.setItem(VER_KEY, APP_VERSION);
+    // データは消さない（ログインできるユーザーが消えると困るので）
+  }
+}catch(e){}
+
+/* ---------- 定数 ---------- */
+const SUPABASE_URL = 'https://keiuilrqwnqqreharlxb.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtlaXVpbHJxd25xcXJlbmhhcmx4YiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzkxNzI4MjcxLCJleHAiOjIxMDczMDQyNzF9.hgy_NV_q6VAirZRwK1uJQGvNC2q7y3XKpGxmxgXeX4c';
+
+const AIRPORTS = [
+  {code:'FUK',name:'福岡'},{code:'KKJ',name:'北九州'},
+  {code:'HND',name:'羽田'},{code:'ITM',name:'伊丹'},
+  {code:'CTS',name:'新千歳'},{code:'OKA',name:'那覇'},
+  {code:'NGO',name:'中部'},{code:'PVG',name:'上海浦東'},
+  {code:'PEK',name:'北京首都'},{code:'TSA',name:'台北松山'},
+  {code:'GMP',name:'ソウル金浦'},{code:'XMN',name:'廈門'},
+];
+const AIRCRAFT_TYPES = ['A320neo','A321neo'];
+const SERVICE_JA = {domestic:'国内線', international:'国際線'};
+const ROLE_JA = {
+  manager:'運航管理',
+  general:'一般',
+  general_limited:'一般',
+  viewer:'閲覧のみ'
+};
+const USER_ADMIN_PW = 'User-NFS';
+
+const STATUS = ['scheduled','delayed','cancelled','diverted'];
+const STATUS_JA = {scheduled:'通常', delayed:'遅延', cancelled:'欠航', diverted:'ダイバート'};
+const FLEET_STATUS_JA = {active:'稼働中', maintenance:'整備中', reserve:'予備機'};
+const BASE = 'FUK';
+const CURFEW_MIN = 22 * 60;
+const TURNAROUND = 60;
+const TURNAROUND_INTL = 90;
+
+/* ---------- 権限 ---------- */
+function isManager(){ return state.session && state.session.role==='manager'; }
+function isGeneral(){ return state.session && (state.session.role==='general' || state.session.role==='general_limited'); }
+function isViewer(){ return state.session && state.session.role==='viewer'; }
+function canEdit(){ return state.session && (isManager() || isGeneral()); }
+function canEditMaint(){
+  if(!state.session) return false;
+  return state.session.role==='manager' || state.session.role==='general';
+}
+function canEditFleet(){ return isManager(); }
+
+/* ---------- ユーティリティ ---------- */
+const pad = n => String(n).padStart(2,'0');
+const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseDate = s => { const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
+const todayStr = () => fmtDate(new Date());
+const addMin = (hhmm, min) => {
+  const [h,m]=hhmm.split(':').map(Number);
+  let t=h*60+m+min; t=((t%1440)+1440)%1440;
+  return pad(Math.floor(t/60))+':'+pad(t%60);
+};
+const timeToMin = s => { const [h,m]=s.split(':').map(Number); return h*60+m; };
+const $ = s => document.querySelector(s);
+const uid = () => 'x'+Math.random().toString(36).slice(2,9);
+const nowStamp = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+
+/* ---------- 状態 ---------- */
+let state = {
+  flights: [], fleet: [], users: [], logs: [], session: null,
+  view: 'dashboard',
+  calMonth: new Date().getFullYear() + '-' + pad(new Date().getMonth()+1),
+  opsDate: todayStr(),
+  ttTab: 'domestic',
+  filters: {q:'', status:'', ac:'', from:'', to:''},
+  logFilters: {actor:'', type:'', date:''},
+  online: navigator.onLine,
+  pendingSync: false,
+  userAdminUnlocked: false,
+  serverConnected: false,
+  syncState: 'connecting',
+  supabase: null,
+  realtimeChannel: null
+};
+
+const LS_KEY = 'nfs_state_v1';
+function saveLocal(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      flights:state.flights, fleet:state.fleet, users:state.users,
+      logs:state.logs, session:state.session, pendingSync:state.pendingSync
+    }));
+  }catch(e){ console.warn('保存失敗', e); }
+}
+function loadLocal(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return false;
+    const d = JSON.parse(raw);
+    if(Array.isArray(d.flights)) state.flights = d.flights;
+    if(Array.isArray(d.fleet)) state.fleet = d.fleet;
+    if(Array.isArray(d.users)) state.users = d.users;
+    if(Array.isArray(d.logs)) state.logs = d.logs;
+    if(d.session) state.session = d.session;
+    if(typeof d.pendingSync === 'boolean') state.pendingSync = d.pendingSync;
+    return true;
+  }catch(e){ console.warn('読込失敗', e); return false; }
+}
+
+/* ============================================================
+   同期ステータス
+   ============================================================ */
+function setSyncState(s){
+  state.syncState = s;
+  const dot = $('#syncDot'), text = $('#syncText');
+  if(dot) dot.className = 'sync-dot ' + (s==='online'?'online':s==='syncing'?'syncing':(s==='offline'||s==='error')?'offline':'');
+  if(text){
+    const label = {connecting:'接続中…', online:'同期済み', syncing:'同期中…', offline:'オフライン', error:'サーバー未接続'}[s] || s;
+    text.textContent = label;
+  }
+}
+function updateLoginSyncText(msg){
+  const el = $('#loginSyncState');
+  if(el) el.textContent = msg;
+}
+
+/* ============================================================
+   初期データ
+   ============================================================ */
+function seed(){
+  const today = new Date();
+  const mk = (y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+  const y = today.getFullYear(), m = today.getMonth();
+  const D = (off)=>{ const t = new Date(y,m,today.getDate()+off); return mk(t.getFullYear(),t.getMonth(),t.getDate()); };
+
+  state.fleet = [
+    {id:'ac1', reg:'JA01NF', type:'A320neo', status:'active', base:'FUK', service:'domestic'},
+    {id:'ac2', reg:'JA02NF', type:'A320neo', status:'active', base:'FUK', service:'domestic'},
+    {id:'ac3', reg:'JA01NS', type:'A321neo', status:'active', base:'FUK', service:'international'},
+    {id:'ac4', reg:'JA02NS', type:'A321neo', status:'active', base:'FUK', service:'international'},
+    {id:'ac5', reg:'JA03NF', type:'A320neo', status:'reserve', base:'FUK', service:'domestic'},
+    {id:'ac6', reg:'JA04NF', type:'A320neo', status:'reserve', base:'FUK', service:'domestic'},
+    {id:'ac7', reg:'JA03NS', type:'A321neo', status:'reserve', base:'FUK', service:'international'},
+    {id:'ac8', reg:'JA04NS', type:'A321neo', status:'reserve', base:'FUK', service:'international'},
+  ];
+
+  state.users = [
+    {id:'u1', name:'高橋壮太', pass:'Takahashi-NFS', role:'manager', visibleInAdmin:true},
+    {id:'u2', name:'Kukai',    pass:'Kukai-NFS',     role:'manager', visibleInAdmin:true},
+    {id:'u3', name:'JA381A',   pass:'JA381A-NFS',    role:'general', visibleInAdmin:false},
+    {id:'u4', name:'flyer',    pass:'flyer-NFS',     role:'general', visibleInAdmin:false},
+    {id:'u5', name:'しののめ', pass:'Shinonome-NFS', role:'general', visibleInAdmin:false},
+    {id:'u6', name:'しろごま', pass:'Shirogoma-NFS', role:'general', visibleInAdmin:false},
+    {id:'u7', name:'めろんそーだ', pass:'Melon-NFS', role:'general', visibleInAdmin:false},
+    {id:'u8',  name:'げ',        pass:'Ge-NFS',       role:'general', visibleInAdmin:false},
+    {id:'u9',  name:'げんたく',   pass:'Gentaku-NFS',  role:'general', visibleInAdmin:false},
+    {id:'u10', name:'とりさん',   pass:'Torisan-NFS',  role:'general', visibleInAdmin:false},
+    {id:'u11', name:'にゅ',      pass:'Nyu-NFS',      role:'viewer',  visibleInAdmin:false},
+    {id:'u12', name:'空に憧れて', pass:'Sora-NFS',    role:'general_limited', visibleInAdmin:false},
+  ];
+
+  state.logs = [];
+
+  const ROT = {
+    ac1: [
+      {no:'NFS01', from:'FUK', to:'HND', dep:'07:00', arr:'08:40'},
+      {no:'NFS02', from:'HND', to:'FUK', dep:'09:25', arr:'11:10'},
+      {no:'NFS05', from:'FUK', to:'HND', dep:'12:00', arr:'13:40'},
+      {no:'NFS06', from:'HND', to:'FUK', dep:'14:25', arr:'15:10'},
+      {no:'NFS09', from:'FUK', to:'HND', dep:'16:00', arr:'17:40'},
+      {no:'NFS10', from:'HND', to:'FUK', dep:'18:25', arr:'19:10'},
+    ],
+    ac2: [
+      {no:'NFS03', from:'FUK', to:'HND', dep:'08:00', arr:'09:40'},
+      {no:'NFS04', from:'HND', to:'FUK', dep:'10:25', arr:'12:10'},
+      {no:'NFS07', from:'FUK', to:'HND', dep:'14:00', arr:'15:40'},
+      {no:'NFS08', from:'HND', to:'FUK', dep:'16:25', arr:'17:10'},
+    ],
+    ac3: [
+      {no:'NFS801', from:'FUK', to:'PVG', dep:'08:00', arr:'09:10'},
+      {no:'NFS802', from:'PVG', to:'FUK', dep:'11:00', arr:'13:00'},
+      {no:'NFS803', from:'FUK', to:'PEK', dep:'14:30', arr:'16:30'},
+      {no:'NFS804', from:'PEK', to:'FUK', dep:'18:00', arr:'21:00'},
+    ],
+    ac4: [
+      {no:'NFS805', from:'FUK', to:'TSA', dep:'09:00', arr:'10:00'},
+      {no:'NFS806', from:'TSA', to:'FUK', dep:'11:30', arr:'14:30'},
+      {no:'NFS807', from:'FUK', to:'GMP', dep:'16:00', arr:'17:30'},
+      {no:'NFS808', from:'GMP', to:'FUK', dep:'19:30', arr:'21:00'},
+    ]
+  };
+
+  state.flights = [];
+  let fid = 1;
+  for(let off=-3; off<=14; off++){
+    Object.keys(ROT).forEach(acId=>{
+      ROT[acId].forEach(r=>{
+        state.flights.push({
+          id:'f'+(fid++), no:r.no, from:r.from, to:r.to,
+          dep:r.dep, arr:r.arr, baseDep:r.dep, baseArr:r.arr,
+          date:D(off), ac:acId,
+          status:'scheduled', delayMin:0, note:'', lock:null
+        });
+      });
+    });
+  }
+  state.pendingSync = false;
+  saveLocal();
+}
+
+function toast(msg, type=''){
+  const t = document.createElement('div');
+  t.className = 'toast '+type;
+  t.textContent = msg;
+  $('#toasts').appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='.3s'; setTimeout(()=>t.remove(),300); }, 3600);
+}
+function acReg(id){ const a=state.fleet.find(x=>x.id===id); return a?a.reg:'—'; }
+function acService(id){ const a=state.fleet.find(x=>x.id===id); return a?a.service:'domestic'; }
+function turnaroundFor(acId){
+  return acService(acId)==='international' ? TURNAROUND_INTL : TURNAROUND;
+}
+
+/* ============================================================
+   認証
+   ============================================================ */
+function doLogin(){
+  const name = $('#loginUser').value.trim();
+  const pass = $('#loginPass').value;
+  if(!name || !pass){ toast('ユーザー名とパスワードを入力してください。','err'); return; }
+  if(!state.users || !state.users.length){
+    toast('ユーザーデータがありません。リセットします。','err');
+    seed();
+  }
+  const u = state.users.find(x=>x.name===name && x.pass===pass);
+  if(!u){ toast('ユーザー名またはパスワードが違います。','err'); return; }
+  state.session = {id:u.id, name:u.name, role:u.role};
+  state.userAdminUnlocked = false;
+  logAction('login', `${u.name} がログイン`);
+  saveLocal(); boot();
+  toast(u.name+' さん、ようこそ','ok');
+}
+function doLogout(){
+  if(state.session) logAction('logout', `${state.session.name} がログアウト`);
+  state.session = null;
+  state.userAdminUnlocked = false;
+  saveLocal();
+  $('#app').style.display='none';
+  $('#login').style.display='flex';
+  $('#loginUser').value='';
+  $('#loginPass').value='';
+}
+
+/* ============================================================
+   ナビ
+   ============================================================ */
+const NAV = [
+  {sep:'運航'},
+  {id:'dashboard', label:'ダッシュボード', ico:'▦'},
+  {id:'calendar', label:'スケジュール', ico:'▤'},
+  {id:'timetable', label:'時刻表', ico:'▥'},
+  {id:'flights', label:'便一覧', ico:'✈'},
+  {sep:'機材'},
+  {id:'ops', label:'機材運用', ico:'▬'},
+  {id:'fleet', label:'機材一覧', ico:'⛭'},
+  {id:'maintenance', label:'整備管理', ico:'⚒'},
+  {id:'reserve', label:'予備機', ico:'◈'},
+  {sep:'システム'},
+  {id:'users', label:'ユーザー管理', ico:'♟', managerOnly:true},
+  {id:'data', label:'入出力', ico:'⇅', hideForViewer:true},
+];
+function renderNav(){
+  const nav = $('#nav'); nav.innerHTML='';
+  NAV.forEach(item=>{
+    if(item.sep){ const d=document.createElement('div'); d.className='nav-sep'; d.textContent=item.sep; nav.appendChild(d); return; }
+    if(item.managerOnly && !isManager()) return;
+    if(item.hideForViewer && isViewer()) return;
+    const b=document.createElement('button');
+    b.className='nav-item'+(state.view===item.id?' active':'');
+    b.innerHTML=`<span class="ico">${item.ico}</span>${item.label}`;
+    b.onclick=()=>{ state.view=item.id; renderNav(); render(); toggleSidebar(false); };
+    nav.appendChild(b);
+  });
+}
+function toggleSidebar(force){
+  const s=$('#sidebar'), b=$('#backdrop');
+  const open = force===undefined ? !s.classList.contains('open') : force;
+  s.classList.toggle('open', open);
+  b.classList.toggle('show', open);
+}
+
+/* ============================================================
+   レンダリング
+   ============================================================ */
+function render(){
+  const titles = {
+    dashboard:['ダッシュボード','本日の運航概要'],
+    calendar:['スケジュール','月間運航スケジュール'],
+    timetable:['時刻表','定期便の時刻表'],
+    flights:['便一覧','全便の記録'],
+    ops:['機材運用','機材ごとの1日のローテーション'],
+    fleet:['機材一覧','機材の状態と割り当て'],
+    maintenance:['整備管理','整備中の機材'],
+    reserve:['予備機','待機中の機材'],
+    users:['ユーザー管理','アクセス権限の設定'],
+    data:['入出力','バックアップと復元'],
+  };
+  const [t,s] = titles[state.view] || ['',''];
+  $('#pageTitle').textContent = t;
+  $('#pageSub').textContent = s;
+
+  const c = $('#content');
+  c.innerHTML='';
+
+  if(state.view==='users'){
+    if(!isManager()){ c.innerHTML = '<div class="empty">このページにアクセスする権限がありません。</div>'; return; }
+    if(!state.userAdminUnlocked){ renderUserAdminGate(c); return; }
+    viewUsers(c);
+    return;
+  }
+  if(state.view==='data' && isViewer()){
+    c.innerHTML = '<div class="empty">このページにアクセスする権限がありません。</div>';
+    return;
+  }
+
+  const views = {dashboard:viewDashboard, calendar:viewCalendar, timetable:viewTimetable,
+    flights:viewFlights, ops:viewOps, fleet:viewFleet, maintenance:viewMaintenance,
+    reserve:viewReserve, data:viewData};
+  (views[state.view]||viewDashboard)(c);
+}
+
+function renderUserAdminGate(c){
+  c.innerHTML = `
+    <div class="pw-gate">
+      <div class="lock-ico">🔒</div>
+      <h3>ユーザー管理</h3>
+      <p>この画面にアクセスするにはパスワードが必要です。</p>
+      <div class="field">
+        <label>パスワード</label>
+        <input class="input" id="userAdminPw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')unlockUserAdmin()">
+      </div>
+      <button class="btn primary" style="width:100%;justify-content:center" onclick="unlockUserAdmin()">アクセス</button>
+    </div>`;
+  setTimeout(()=>{ const el=$('#userAdminPw'); if(el) el.focus(); }, 50);
+}
+function unlockUserAdmin(){
+  const pw = $('#userAdminPw').value;
+  if(pw !== USER_ADMIN_PW){
+    logAction('admin', 'ユーザー管理のパスワード認証に失敗', 'ユーザー管理');
+    toast('パスワードが違います。','err');
+    return;
+  }
+  state.userAdminUnlocked = true;
+  logAction('admin', 'ユーザー管理にアクセス', 'ユーザー管理');
+  toast('ユーザー管理にアクセスしました。','ok');
+  render();
+}
+
+/* ============================================================
+   ダッシュボード
+   ============================================================ */
+function viewDashboard(c){
+  const today = todayStr();
+  const todays = state.flights.filter(f=>f.date===today);
+  const delayed = todays.filter(f=>f.status==='delayed').length;
+  const cancelled = todays.filter(f=>f.status==='cancelled').length;
+  const diverted = todays.filter(f=>f.status==='diverted').length;
+  const active = state.fleet.filter(a=>a.status==='active').length;
+  const maint = state.fleet.filter(a=>a.status==='maintenance').length;
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="stat"><div class="k">本日の便数</div><div class="v">${todays.length}</div></div>
+      <div class="stat"><div class="k">遅延</div><div class="v" style="color:var(--warn)">${delayed}</div></div>
+      <div class="stat"><div class="k">欠航</div><div class="v" style="color:var(--danger)">${cancelled}</div></div>
+    </div>
+    <div class="grid-3" style="margin-bottom:20px">
+      <div class="stat"><div class="k">稼働中の機材</div><div class="v" style="color:var(--ok)">${active}</div></div>
+      <div class="stat"><div class="k">整備中</div><div class="v" style="color:var(--warn)">${maint}</div></div>
+      <div class="stat"><div class="k">ダイバート</div><div class="v" style="color:var(--purple)">${diverted}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>本日の便 · ${today}</h3><span class="hint">${todays.length} 便</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>便名</th><th>区間</th><th>定刻</th><th>現在</th><th>機材</th><th>状態</th><th></th></tr></thead>
+          <tbody id="dashBody"></tbody>
+        </table>
+      </div>
+    </div>`;
+  c.appendChild(wrap);
+  const tb = $('#dashBody');
+  if(!todays.length) tb.innerHTML = `<tr><td colspan="7"><div class="empty">本日の便はありません。</div></td></tr>`;
+  todays.sort((a,b)=>a.dep.localeCompare(b.dep)).forEach(f=>{
+    const base = `${f.baseDep||f.dep}–${f.baseArr||f.arr}`;
+    const now = `${f.dep}–${f.arr}`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${f.no}</td>
+      <td class="mono">${f.from} → ${f.to}</td>
+      <td class="mono" style="color:var(--txt-faint)">${base}</td>
+      <td class="mono" style="color:${f.delayMin>0?'var(--warn)':'var(--txt)'}">${now}</td>
+      <td class="mono">${acReg(f.ac)}</td>
+      <td>${statusBadge(f)}</td>
+      <td><button class="btn ghost sm" onclick="openFlight('${f.id}')">開く</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+function statusBadge(f){
+  let label = STATUS_JA[f.status] || f.status;
+  if(f.status==='delayed' && f.delayMin) label = `遅延 +${f.delayMin}分`;
+  return `<span class="badge ${f.status}">${label}</span>`;
+}
+
+/* ============================================================
+   カレンダー
+   ============================================================ */
+function viewCalendar(c){
+  const wrap = document.createElement('div');
+  const tb = document.createElement('div');
+  tb.className='cal-toolbar';
+  tb.innerHTML = `
+    <button class="btn sm" onclick="calNav(-1)">‹ 前月</button>
+    <div class="month">${monthLabel(state.calMonth)}</div>
+    <button class="btn sm" onclick="calNav(1)">翌月 ›</button>
+    <button class="btn sm" onclick="calToday()">今月</button>
+    <div class="spacer" style="flex:1;min-width:0"></div>
+    <div class="filters">
+      <input class="input" id="fq" placeholder="便名・区間で検索…" value="${state.filters.q}">
+      <select class="select" id="fstatus">
+        <option value="">全状態</option>
+        ${STATUS.map(s=>`<option value="${s}" ${state.filters.status===s?'selected':''}>${STATUS_JA[s]}</option>`).join('')}
+      </select>
+      <select class="select" id="fac">
+        <option value="">全機材</option>
+        ${state.fleet.map(a=>`<option value="${a.id}" ${state.filters.ac===a.id?'selected':''}>${a.reg}</option>`).join('')}
+      </select>
+      <select class="select" id="ffrom">
+        <option value="">出発地すべて</option>
+        ${AIRPORTS.map(a=>`<option value="${a.code}" ${state.filters.from===a.code?'selected':''}>${a.code} ${a.name}</option>`).join('')}
+      </select>
+      <select class="select" id="fto">
+        <option value="">到着地すべて</option>
+        ${AIRPORTS.map(a=>`<option value="${a.code}" ${state.filters.to===a.code?'selected':''}>${a.code} ${a.name}</option>`).join('')}
+      </select>
+    </div>`;
+  wrap.appendChild(tb);
+
+  const calWrap = document.createElement('div');
+  calWrap.className = 'cal-wrap';
+  const grid = document.createElement('div');
+  grid.className='cal-grid';
+  const dows = ['月','火','水','木','金','土','日'];
+  dows.forEach((d,i)=>{
+    const h=document.createElement('div');
+    h.className='cal-dow'+(i===5?' sat':'')+(i===6?' sun':'');
+    h.textContent=d;
+    grid.appendChild(h);
+  });
+
+  const [y,m] = state.calMonth.split('-').map(Number);
+  const first = new Date(y,m-1,1);
+  const startDow = (first.getDay()+6)%7;
+  const daysInMonth = new Date(y,m,0).getDate();
+  const prevDays = new Date(y,m-1,0).getDate();
+  const today = todayStr();
+
+  const cells = [];
+  for(let i=startDow-1;i>=0;i--) cells.push({d:new Date(y,m-2,prevDays-i), other:true});
+  for(let d=1;d<=daysInMonth;d++) cells.push({d:new Date(y,m-1,d), other:false});
+  let nextDay = 1;
+  while(cells.length%7!==0){ cells.push({d:new Date(y,m,nextDay++), other:true}); }
+
+  cells.forEach(cell=>{
+    const ds = fmtDate(cell.d);
+    const dow = cell.d.getDay();
+    const isSat = dow===6, isSun = dow===0;
+    const el = document.createElement('div');
+    el.className = 'cal-cell'+(cell.other?' other':'')+(ds===today?' today':'')+(isSat?' sat':'')+(isSun?' sun':'');
+    el.onclick = (e)=>{ if(e.target===el) openDay(ds); };
+
+    let fl = applyFilters(state.flights.filter(f=>f.date===ds));
+    fl.sort((a,b)=>timeToMin(a.dep)-timeToMin(b.dep));
+
+    const dateEl = document.createElement('div');
+    dateEl.className='cal-date';
+    dateEl.innerHTML = `<span class="d">${cell.d.getDate()}</span><span class="count">${fl.length}</span>`;
+    el.appendChild(dateEl);
+
+    fl.slice(0,5).forEach(f=>{
+      const chip = document.createElement('div');
+      let cls = 'flight-chip ' + f.status;
+      if(f.note && f.note.includes('整備回送')) cls += ' ferry';
+      chip.className = cls;
+      const timeStr = f.delayMin>0
+        ? `${f.dep}<span style="color:var(--warn);font-size:9px">+${f.delayMin}</span>`
+        : `${f.dep}`;
+      chip.innerHTML = `
+        <span class="time">${timeStr}</span>
+        <span class="info">
+          <span class="no">${f.no}</span>
+          <span class="rt">${f.from}→${f.to}</span>
+        </span>`;
+      chip.title = `${f.no} ${f.from}→${f.to} ${f.dep}-${f.arr} (${acReg(f.ac)})`;
+      chip.onclick = (e)=>{ e.stopPropagation(); openFlight(f.id); };
+      el.appendChild(chip);
+    });
+    if(fl.length>5){
+      const more=document.createElement('div'); more.className='cal-more';
+      more.textContent = `+${fl.length-5} 件を表示`;
+      more.onclick=(e)=>{e.stopPropagation();openDay(ds);};
+      el.appendChild(more);
+    }
+    grid.appendChild(el);
+  });
+  calWrap.appendChild(grid);
+  wrap.appendChild(calWrap);
+  c.appendChild(wrap);
+
+  const bind = (id, key) => {
+    const el = $('#'+id);
+    el.oninput = ()=>{ state.filters[key]=el.value; render(); };
+    el.onchange = ()=>{ state.filters[key]=el.value; render(); };
+  };
+  bind('fq','q'); bind('fstatus','status'); bind('fac','ac'); bind('ffrom','from'); bind('fto','to');
+}
+function applyFilters(list){
+  const f = state.filters;
+  const q = f.q.trim().toLowerCase();
+  return list.filter(x=>{
+    if(f.status && x.status!==f.status) return false;
+    if(f.ac && x.ac!==f.ac) return false;
+    if(f.from && x.from!==f.from) return false;
+    if(f.to && x.to!==f.to) return false;
+    if(q){
+      const hay = `${x.no} ${x.from} ${x.to} ${acReg(x.ac)}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function monthLabel(ym){ const [y,m]=ym.split('-').map(Number); return `${y}年${m}月`; }
+function calNav(d){
+  const [y,m]=state.calMonth.split('-').map(Number);
+  const nd = new Date(y,m-1+d,1);
+  state.calMonth = `${nd.getFullYear()}-${pad(nd.getMonth()+1)}`;
+  render();
+}
+function calToday(){
+  const n=new Date();
+  state.calMonth = `${n.getFullYear()}-${pad(n.getMonth()+1)}`;
+  render();
+}
+
+/* ============================================================
+   時刻表
+   ============================================================ */
+const TIMETABLE = {
+  domestic: [
+    {ac:'JA01NF', acType:'A320neo', legs:[
+      {no:'NFS01', from:'FUK', to:'HND', dep:'07:00', arr:'08:40', ta:45},
+      {no:'NFS02', from:'HND', to:'FUK', dep:'09:25', arr:'11:10', ta:null}]},
+    {ac:'JA02NF', acType:'A320neo', legs:[
+      {no:'NFS03', from:'FUK', to:'HND', dep:'08:00', arr:'09:40', ta:45},
+      {no:'NFS04', from:'HND', to:'FUK', dep:'10:25', arr:'12:10', ta:null}]},
+    {ac:'JA01NF', acType:'A320neo', legs:[
+      {no:'NFS05', from:'FUK', to:'HND', dep:'12:00', arr:'13:40', ta:45},
+      {no:'NFS06', from:'HND', to:'FUK', dep:'14:25', arr:'15:10', ta:null}]},
+    {ac:'JA02NF', acType:'A320neo', legs:[
+      {no:'NFS07', from:'FUK', to:'HND', dep:'14:00', arr:'15:40', ta:45},
+      {no:'NFS08', from:'HND', to:'FUK', dep:'16:25', arr:'17:10', ta:null}]},
+    {ac:'JA01NF', acType:'A320neo', legs:[
+      {no:'NFS09', from:'FUK', to:'HND', dep:'16:00', arr:'17:40', ta:45},
+      {no:'NFS10', from:'HND', to:'FUK', dep:'18:25', arr:'19:10', ta:null}]},
+  ],
+  international: [
+    {ac:'JA01NS', acType:'A321neo', legs:[
+      {no:'NFS801', from:'FUK', to:'PVG', dep:'08:00', arr:'09:10', ta:110},
+      {no:'NFS802', from:'PVG', to:'FUK', dep:'11:00', arr:'13:00', ta:null}]},
+    {ac:'JA01NS', acType:'A321neo', legs:[
+      {no:'NFS803', from:'FUK', to:'PEK', dep:'14:30', arr:'16:30', ta:90},
+      {no:'NFS804', from:'PEK', to:'FUK', dep:'18:00', arr:'21:00', ta:null}]},
+    {ac:'JA02NS', acType:'A321neo', legs:[
+      {no:'NFS805', from:'FUK', to:'TSA', dep:'09:00', arr:'10:00', ta:90},
+      {no:'NFS806', from:'TSA', to:'FUK', dep:'11:30', arr:'14:30', ta:null}]},
+    {ac:'JA02NS', acType:'A321neo', legs:[
+      {no:'NFS807', from:'FUK', to:'GMP', dep:'16:00', arr:'17:30', ta:120},
+      {no:'NFS808', from:'GMP', to:'FUK', dep:'19:30', arr:'21:00', ta:null}]},
+  ]
+};
+function viewTimetable(c){
+  const wrap = document.createElement('div');
+  const tabs = document.createElement('div');
+  tabs.className = 'tt-tabs';
+  tabs.innerHTML = `
+    <button class="tt-tab ${state.ttTab==='domestic'?'active':''}" onclick="setTtTab('domestic')">国内線</button>
+    <button class="tt-tab ${state.ttTab==='international'?'active':''}" onclick="setTtTab('international')">国際線</button>`;
+  wrap.appendChild(tabs);
+
+  const head = document.createElement('div');
+  head.className = 'card';
+  head.style.marginBottom = '16px';
+  head.innerHTML = `
+    <div class="card-h">
+      <h3>${state.ttTab==='domestic'?'国内線 定期便':'国際線 定期便'}</h3>
+      <span class="hint">福岡（FUK）発着 · 毎日運航</span>
+    </div>`;
+  wrap.appendChild(head);
+
+  (TIMETABLE[state.ttTab]||[]).forEach(group=>{
+    const sec = document.createElement('div');
+    sec.className = 'tt-section';
+    const legs = group.legs;
+    const from = legs[0].from, to = legs[0].to;
+    const fromName = (AIRPORTS.find(a=>a.code===from)||{}).name || '';
+    const toName = (AIRPORTS.find(a=>a.code===to)||{}).name || '';
+    const secHead = document.createElement('div');
+    secHead.className = 'tt-section-h';
+    secHead.innerHTML = `
+      <div class="route">
+        <span class="ap">${from}</span><span>${fromName}</span>
+        <span class="arrow">⇄</span>
+        <span>${toName}</span><span class="ap">${to}</span>
+      </div>
+      <div class="ac-info">機材：<b>${group.ac}</b> · ${group.acType}</div>`;
+    sec.appendChild(secHead);
+    const table = document.createElement('div');
+    table.className = 'tt-grid';
+    table.innerHTML = `
+      <div class="tt-th">便名</div><div class="tt-th">出発地</div><div class="tt-th">出発</div>
+      <div class="tt-th">到着</div><div class="tt-th">到着地</div><div class="tt-th">T/A</div>`;
+    legs.forEach((leg, idx)=>{
+      const cls = (idx===0 && legs.length>1) ? ' pair-start' : '';
+      table.innerHTML += `
+        <div class="tt-td flight-no${cls}">${leg.no}</div>
+        <div class="tt-td mono${cls}">${leg.from}</div>
+        <div class="tt-td time${cls}">${leg.dep}</div>
+        <div class="tt-td time${cls}">${leg.arr}</div>
+        <div class="tt-td mono${cls}">${leg.to}</div>
+        <div class="tt-td ta${cls}">${leg.ta?leg.ta+'分':'—'}</div>`;
+    });
+    sec.appendChild(table);
+    wrap.appendChild(sec);
+  });
+  c.appendChild(wrap);
+}
+function setTtTab(tab){ state.ttTab = tab; render(); }
+
+/* ============================================================
+   便一覧
+   ============================================================ */
+function viewFlights(c){
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <div class="card">
+      <div class="card-h">
+        <h3>全便</h3>
+        ${canEdit()?`<button class="btn primary sm" onclick="openFlight(null)">＋ 新規便</button>`:''}
+      </div>
+      <div class="filters" style="margin-bottom:14px">
+        <input class="input" id="fq" placeholder="便名・区間で検索…" value="${state.filters.q}">
+        <select class="select" id="fstatus">
+          <option value="">全状態</option>
+          ${STATUS.map(s=>`<option value="${s}" ${state.filters.status===s?'selected':''}>${STATUS_JA[s]}</option>`).join('')}
+        </select>
+        <select class="select" id="fac">
+          <option value="">全機材</option>
+          ${state.fleet.map(a=>`<option value="${a.id}" ${state.filters.ac===a.id?'selected':''}>${a.reg}</option>`).join('')}
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>日付</th><th>便名</th><th>区間</th><th>定刻</th><th>現在</th><th>遅延</th><th>機材</th><th>状態</th><th></th></tr></thead>
+          <tbody id="flBody"></tbody>
+        </table>
+      </div>
+    </div>`;
+  c.appendChild(wrap);
+
+  const list = applyFilters([...state.flights]).sort((a,b)=> (a.date+a.dep).localeCompare(b.date+b.dep));
+  const tb = $('#flBody');
+  if(!list.length){ tb.innerHTML = `<tr><td colspan="9"><div class="empty">条件に一致する便がありません。</div></td></tr>`; }
+  list.forEach(f=>{
+    const base = `${f.baseDep||f.dep}–${f.baseArr||f.arr}`;
+    const now = `${f.dep}–${f.arr}`;
+    const delay = f.delayMin ? `+${f.delayMin}分` : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${f.date}</td>
+      <td class="mono">${f.no}</td>
+      <td class="mono">${f.from} → ${f.to}</td>
+      <td class="mono" style="color:var(--txt-faint)">${base}</td>
+      <td class="mono" style="color:${f.delayMin>0?'var(--warn)':'var(--txt)'}">${now}</td>
+      <td class="mono" style="color:${f.delayMin>0?'var(--warn)':'var(--txt-faint)'}">${delay}</td>
+      <td class="mono">${acReg(f.ac)}</td>
+      <td>${statusBadge(f)}</td>
+      <td><button class="btn ghost sm" onclick="openFlight('${f.id}')">開く</button></td>`;
+    tb.appendChild(tr);
+  });
+  const bind = (id,key)=>{ const el=$('#'+id); el.oninput=()=>{state.filters[key]=el.value;render();}; el.onchange=()=>{state.filters[key]=el.value;render();}; };
+  bind('fq','q'); bind('fstatus','status'); bind('fac','ac');
+}
+
+/* ============================================================
+   機材運用
+   ============================================================ */
+function viewOps(c){
+  const wrap = document.createElement('div');
+  const tb = document.createElement('div');
+  tb.className = 'ops-header';
+  tb.innerHTML = `
+    <button class="btn sm" onclick="opsNav(-1)">‹ 前日</button>
+    <div class="date-label">${fmtJa(state.opsDate)}</div>
+    <button class="btn sm" onclick="opsNav(1)">翌日 ›</button>
+    <button class="btn sm" onclick="opsToday()">今日</button>
+    <input class="input" type="date" value="${state.opsDate}" onchange="opsSetDate(this.value)" style="width:auto">
+    <div class="spacer" style="flex:1;min-width:0"></div>
+    <select class="select" id="opsFilterAc">
+      <option value="">全機材</option>
+      ${state.fleet.map(a=>`<option value="${a.id}">${a.reg}</option>`).join('')}
+    </select>`;
+  wrap.appendChild(tb);
+
+  const legend = document.createElement('div');
+  legend.className = 'ops-legend';
+  legend.innerHTML = `
+    <div class="item"><span class="dot" style="background:var(--accent)"></span>通常</div>
+    <div class="item"><span class="dot" style="background:var(--warn)"></span>遅延</div>
+    <div class="item"><span class="dot" style="background:var(--danger)"></span>欠航</div>
+    <div class="item"><span class="dot" style="background:var(--purple)"></span>ダイバート</div>
+    <div class="item"><span class="dot" style="background:#0e6b6b"></span>整備回送</div>`;
+  wrap.appendChild(legend);
+
+  const ganttWrap = document.createElement('div');
+  ganttWrap.className = 'gantt-wrap';
+  const gantt = document.createElement('div');
+  gantt.className = 'gantt';
+
+  const headerRow = document.createElement('div');
+  headerRow.className = 'gantt-row header';
+  headerRow.innerHTML = `
+    <div class="gantt-ac" style="background:var(--bg-3)"><b>機材</b><span>24時間</span></div>
+    <div class="gantt-track"></div>`;
+  gantt.appendChild(headerRow);
+  const headerTrack = headerRow.querySelector('.gantt-track');
+  for(let h=0; h<=24; h++){
+    const lbl = document.createElement('div');
+    lbl.className = 'gantt-hour-label';
+    lbl.style.position = 'absolute';
+    lbl.style.left = (h/24*100) + '%';
+    lbl.style.transform = 'translateX(-50%)';
+    lbl.textContent = h===24 ? '24' : pad(h);
+    headerTrack.appendChild(lbl);
+    const line = document.createElement('div');
+    line.className = 'gantt-hour' + (h%3===0 ? ' major' : '');
+    line.style.left = (h/24*100) + '%';
+    headerTrack.appendChild(line);
+  }
+
+  let fleet = [...state.fleet];
+  const fAc = ($('#opsFilterAc') || {}).value || '';
+  if(fAc) fleet = fleet.filter(a=>a.id===fAc);
+
+  fleet.forEach(a=>{
+    const flights = state.flights.filter(f=>f.ac===a.id && f.date===state.opsDate)
+      .sort((x,y)=>timeToMin(x.dep)-timeToMin(y.dep));
+    const row = document.createElement('div');
+    row.className = 'gantt-row';
+    const firstFrom = flights.length ? flights[0].from : a.base;
+    const lastTo = flights.length ? flights[flights.length-1].to : a.base;
+    const startLoc = firstFrom === a.base ? `${a.base}発` : `${firstFrom}泊明け`;
+    const endLoc = lastTo === a.base ? `${a.base}着` : `${lastTo}泊`;
+    row.innerHTML = `
+      <div class="gantt-ac">
+        <b>${a.reg}</b>
+        <span>${a.type} · ${SERVICE_JA[a.service]||''}</span>
+        <span>${FLEET_STATUS_JA[a.status]}</span>
+        <span class="loc">${startLoc} → ${endLoc}</span>
+      </div>
+      <div class="gantt-track"></div>`;
+    gantt.appendChild(row);
+    const track = row.querySelector('.gantt-track');
+
+    let prev = null;
+    const ta = turnaroundFor(a.id);
+    flights.forEach(f=>{
+      const depMin = timeToMin(f.dep);
+      const arrMin = timeToMin(f.arr);
+      const leftPct = (depMin/1440)*100;
+      const widthPct = Math.max(((arrMin - depMin)/1440)*100, 1.5);
+
+      if(prev){
+        const gapStart = timeToMin(prev.arr);
+        const gapEnd = depMin;
+        const gapLen = gapEnd - gapStart;
+        if(gapLen > 0){
+          const gapEl = document.createElement('div');
+          gapEl.className = 'turnaround-gap' + (gapLen < ta ? ' tight' : '');
+          gapEl.style.left = (gapStart/1440)*100 + '%';
+          gapEl.style.width = (gapLen/1440)*100 + '%';
+          gapEl.title = `ターンアラウンド ${gapLen}分（基準${ta}分）`;
+          track.appendChild(gapEl);
+        }
+      }
+      prev = f;
+      const bar = document.createElement('div');
+      let cls = 'flight-bar ' + f.status;
+      if(f.note && f.note.includes('整備回送')) cls += ' ferry';
+      bar.className = cls;
+      bar.style.left = leftPct + '%';
+      bar.style.width = widthPct + '%';
+      const timeStr = f.delayMin>0 ? `${f.dep}–${f.arr} (+${f.delayMin})` : `${f.dep}–${f.arr}`;
+      bar.innerHTML = `
+        <span class="fb-no">${f.no}</span>
+        <span class="fb-rt">${f.from}→${f.to}</span>
+        <span class="fb-time">${timeStr}</span>`;
+      bar.title = `${f.no} ${f.from}→${f.to} ${timeStr} · ${a.reg}`;
+      bar.onclick = ()=>openFlight(f.id);
+      track.appendChild(bar);
+    });
+    for(let h=0; h<=24; h++){
+      const line = document.createElement('div');
+      line.className = 'gantt-hour' + (h%3===0 ? ' major' : '');
+      line.style.left = (h/24*100) + '%';
+      track.appendChild(line);
+    }
+  });
+
+  if(state.opsDate === todayStr()){
+    const now = new Date();
+    const nowMin = now.getHours()*60 + now.getMinutes();
+    const nowLine = document.createElement('div');
+    nowLine.className = 'now-line';
+    nowLine.style.left = `calc(120px + (100% - 120px) * ${nowMin/1440})`;
+    gantt.appendChild(nowLine);
+  }
+  ganttWrap.appendChild(gantt);
+  wrap.appendChild(ganttWrap);
+  c.appendChild(wrap);
+  const acSel = $('#opsFilterAc');
+  if(acSel) acSel.onchange = ()=> render();
+}
+function fmtJa(ds){
+  const [y,m,d] = ds.split('-').map(Number);
+  const dow = ['日','月','火','水','木','金','土'][new Date(y,m-1,d).getDay()];
+  return `${y}年${m}月${d}日（${dow}）`;
+}
+function opsNav(d){
+  const dt = parseDate(state.opsDate);
+  dt.setDate(dt.getDate()+d);
+  state.opsDate = fmtDate(dt);
+  render();
+}
+function opsToday(){ state.opsDate = todayStr(); render(); }
+function opsSetDate(ds){ if(!ds) return; state.opsDate = ds; render(); }
+
+/* ============================================================
+   機材一覧
+   ============================================================ */
+function viewFleet(c){
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <div class="card">
+      <div class="card-h">
+        <h3>機材 · ${state.fleet.length} 機</h3>
+        ${canEditFleet()?`<button class="btn primary sm" onclick="openAircraft(null)">＋ 新規機材</button>`:''}
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>登録記号</th><th>型式</th><th>用途</th><th>状態</th><th>拠点</th><th>整備期間</th><th>本日の便数</th><th></th></tr></thead>
+          <tbody id="acBody"></tbody>
+        </table>
+      </div>
+    </div>`;
+  c.appendChild(wrap);
+  const tb = $('#acBody');
+  const today = todayStr();
+  state.fleet.forEach(a=>{
+    const n = state.flights.filter(f=>f.ac===a.id && f.date===today).length;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${a.reg}</td>
+      <td>${a.type}</td>
+      <td><span class="badge ${a.service}">${SERVICE_JA[a.service]}</span></td>
+      <td><span class="badge ${a.status}">${FLEET_STATUS_JA[a.status]}</span></td>
+      <td class="mono">${a.base}</td>
+      <td class="mono">${a.maintStart?`${a.maintStart} → ${a.maintEnd||'—'}`:'—'}</td>
+      <td class="mono">${n}</td>
+      <td><button class="btn ghost sm" onclick="openAircraft('${a.id}')">${canEditFleet()?'編集':'開く'}</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   整備管理
+   ============================================================ */
+function viewMaintenance(c){
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <div class="card">
+      <div class="card-h">
+        <h3>整備コントロール</h3>
+        <span class="hint">整備に出すと全スケジュールが予備機へ移行し、回送便（NFS8055/8056）を自動作成します。</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>登録記号</th><th>型式</th><th>用途</th><th>状態</th><th>整備期間</th><th>担当便数</th><th></th></tr></thead>
+          <tbody id="mBody"></tbody>
+        </table>
+      </div>
+    </div>`;
+  c.appendChild(wrap);
+  const tb = $('#mBody');
+  state.fleet.forEach(a=>{
+    const n = state.flights.filter(f=>f.ac===a.id).length;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${a.reg}</td>
+      <td>${a.type}</td>
+      <td><span class="badge ${a.service}">${SERVICE_JA[a.service]}</span></td>
+      <td><span class="badge ${a.status}">${FLEET_STATUS_JA[a.status]}</span></td>
+      <td class="mono">${a.maintStart?`${a.maintStart} → ${a.maintEnd||'—'}`:'—'}</td>
+      <td class="mono">${n}</td>
+      <td>
+        ${a.status==='active' && canEditMaint()?`<button class="btn sm" onclick="openMaintStart('${a.id}')">整備へ</button>`:''}
+        ${a.status==='maintenance' && canEditMaint()?`<button class="btn sm" onclick="openMaintEnd('${a.id}')">整備終了</button>`:''}
+      </td>`;
+    tb.appendChild(tr);
+  });
+}
+function openMaintStart(acId){
+  if(!canEditMaint()){ toast('この操作は許可されていません。','err'); return; }
+  const ac = state.fleet.find(a=>a.id===acId);
+  const reserves = state.fleet.filter(a=>a.status==='reserve');
+  if(!reserves.length){ toast('利用可能な予備機がありません。','err'); return; }
+  const today = todayStr();
+  const flightCount = state.flights.filter(f=>f.ac===acId).length;
+  showModal(`
+    <div class="modal-h"><h3>${ac.reg} を整備へ</h3><button class="btn ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      <div class="field">
+        <label>予備機（スケジュール移行先）</label>
+        <select class="select" id="mReserve">
+          ${reserves.map(r=>`<option value="${r.id}">${r.reg} · ${r.type} · ${SERVICE_JA[r.service]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="row">
+        <div class="field"><label>開始日</label><input class="input" id="mStart" type="date" value="${today}"></div>
+        <div class="field"><label>終了日</label><input class="input" id="mEnd" type="date" value="${today}"></div>
+      </div>
+      <p class="lock-note">⚠ ${flightCount} 便が予備機へ移行します。</p>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn primary" onclick="confirmMaintStart('${acId}')">実行</button>
+    </div>`);
+}
+function confirmMaintStart(acId){
+  const ac = state.fleet.find(a=>a.id===acId);
+  const resId = $('#mReserve').value;
+  const start = $('#mStart').value, end = $('#mEnd').value;
+  if(!start || !end || end<start){ toast('整備期間が不正です。','err'); return; }
+  const overlap = state.fleet.some(a=>a.id!==acId && a.status==='maintenance' && a.maintStart && a.maintEnd && !(end < a.maintStart || start > a.maintEnd));
+  if(overlap){ toast('その期間は他の機材が整備中です。','err'); return; }
+
+  let moved = 0;
+  state.flights.forEach(f=>{ if(f.ac===acId){ f.ac = resId; moved++; } });
+  const ferryOut = {id:uid(), no:'NFS8055', from:'FUK', to:'XMN', dep:'08:00', arr:'11:30', baseDep:'08:00', baseArr:'11:30', date:start, ac:acId, status:'scheduled', delayMin:0, note:'整備回送（往路）', lock:null};
+  const ferryIn  = {id:uid(), no:'NFS8056', from:'XMN', to:'FUK', dep:'15:00', arr:'18:30', baseDep:'15:00', baseArr:'18:30', date:end,   ac:acId, status:'scheduled', delayMin:0, note:'整備回送（復路）', lock:null};
+  state.flights.push(ferryOut, ferryIn);
+  ac.status='maintenance'; ac.maintStart=start; ac.maintEnd=end; ac.assignedTo = resId;
+
+  logAction('maint', `${ac.reg} を整備へ（${start}〜${end}）／${moved}便を ${acReg(resId)} へ移行／回送便 NFS8055, NFS8056 を自動作成`, ac.reg);
+  state.pendingSync = true;
+  saveLocal(); closeModal(); render();
+  toast(`${ac.reg} を整備へ。${moved} 便を ${acReg(resId)} へ移行、回送便を作成しました。`,'ok');
+
+  safeSync(async ()=>{
+    await pushFleet([ac]);
+    await pushFlights(state.flights.filter(f=>f.ac===acId || f.id===ferryOut.id || f.id===ferryIn.id));
+    await pushFlights(state.flights.filter(f=>f.ac===resId));
+  });
+}
+function openMaintEnd(acId){
+  if(!canEditMaint()){ toast('この操作は許可されていません。','err'); return; }
+  const ac = state.fleet.find(a=>a.id===acId);
+  const target = ac.assignedTo;
+  showModal(`
+    <div class="modal-h"><h3>整備終了 · ${ac.reg}</h3><button class="btn ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      <p style="margin-bottom:12px"><b>${target?acReg(target):'—'}</b> に割り当て中の旅客便を <b>${ac.reg}</b> へ戻します。<br>
+      回送便（NFS8055/8056）は削除されます。</p>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn primary" onclick="confirmMaintEnd('${acId}')">実行</button>
+    </div>`);
+}
+function confirmMaintEnd(acId){
+  const ac = state.fleet.find(a=>a.id===acId);
+  const target = ac.assignedTo;
+  let moved=0;
+  if(target){
+    state.flights.forEach(f=>{
+      if(f.ac===target && !(f.note && f.note.includes('整備回送'))){ f.ac=acId; moved++; }
+    });
+  }
+  const removed = state.flights.filter(f=> f.ac===acId && f.note && f.note.includes('整備回送'));
+  state.flights = state.flights.filter(f=> !(f.ac===acId && f.note && f.note.includes('整備回送')));
+  ac.status='active'; ac.maintStart=null; ac.maintEnd=null; ac.assignedTo=null;
+  logAction('maint', `${ac.reg} の整備終了／${moved}便を ${ac.reg} へ戻し、回送便を削除`, ac.reg);
+  state.pendingSync = true;
+  saveLocal(); closeModal(); render();
+  toast(`${ac.reg} を運航復帰。${moved} 便を戻し、回送便を削除しました。`,'ok');
+
+  safeSync(async ()=>{
+    await pushFleet([ac]);
+    await pushFlights(state.flights.filter(f=>f.ac===acId));
+    if(target) await pushFlights(state.flights.filter(f=>f.ac===target));
+    for(const r of removed){ await deleteFlightServer(r.id); }
+  });
+}
+
+/* ============================================================
+   予備機
+   ============================================================ */
+function viewReserve(c){
+  const wrap = document.createElement('div');
+  const reserves = state.fleet.filter(a=>a.status==='reserve');
+  wrap.innerHTML = `
+    <div class="card">
+      <div class="card-h"><h3>予備機 · ${reserves.length} 機</h3><span class="hint">整備時の交代待機機材</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>登録記号</th><th>型式</th><th>用途</th><th>拠点</th><th>割当便数</th><th></th></tr></thead>
+          <tbody id="rBody"></tbody>
+        </table>
+      </div>
+    </div>`;
+  c.appendChild(wrap);
+  const tb=$('#rBody');
+  if(!reserves.length) tb.innerHTML=`<tr><td colspan="6"><div class="empty">予備機がありません。</div></td></tr>`;
+  reserves.forEach(a=>{
+    const n = state.flights.filter(f=>f.ac===a.id).length;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono">${a.reg}</td><td>${a.type}</td>
+      <td><span class="badge ${a.service}">${SERVICE_JA[a.service]}</span></td>
+      <td class="mono">${a.base}</td>
+      <td class="mono">${n}</td>
+      <td><button class="btn ghost sm" onclick="openAircraft('${a.id}')">${canEditFleet()?'編集':'開く'}</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   ユーザー管理
+   ============================================================ */
+function viewUsers(c){
+  const wrap = document.createElement('div');
+
+  const userCard = document.createElement('div');
+  userCard.className = 'card';
+  userCard.style.marginBottom = '16px';
+  userCard.innerHTML = `
+    <div class="card-h">
+      <h3>ユーザーと権限 · ${state.users.length} 名</h3>
+      <button class="btn primary sm" onclick="openUser(null)">＋ ユーザー追加</button>
+    </div>
+    <div class="table-wrap" style="max-height:520px;overflow-y:auto">
+      <table>
+        <thead><tr><th>ユーザー名</th><th>パスワード</th><th>権限（変更可）</th><th></th></tr></thead>
+        <tbody id="uBody"></tbody>
+      </table>
+    </div>`;
+  wrap.appendChild(userCard);
+
+  const logCard = document.createElement('div');
+  logCard.className = 'card';
+  logCard.innerHTML = `
+    <div class="card-h">
+      <h3>監査ログ · ${state.logs.length} 件</h3>
+      <div class="flex">
+        <span class="badge ${state.serverConnected?'synced':'pending'}">
+          ${state.serverConnected?'サーバー同期済み':'サーバー未接続'}
+        </span>
+      </div>
+    </div>
+    <div class="log-filters">
+      <input class="input" id="logActor" placeholder="ユーザー名で絞り込み…" value="${state.logFilters.actor}">
+      <select class="select" id="logType">
+        <option value="">全操作</option>
+        ${Object.keys(LOG_TYPE_JA).map(k=>`<option value="${k}" ${state.logFilters.type===k?'selected':''}>${LOG_TYPE_JA[k]}</option>`).join('')}
+      </select>
+      <input class="input" id="logDate" type="date" value="${state.logFilters.date}">
+      <button class="btn sm" onclick="clearLogFilters()">クリア</button>
+    </div>
+    <div class="table-wrap" style="max-height:520px;overflow-y:auto">
+      <table>
+        <thead><tr><th>日時</th><th>ユーザー</th><th>操作</th><th>対象</th><th>詳細</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>`;
+  wrap.appendChild(logCard);
+  c.appendChild(wrap);
+
+  const tb=$('#uBody');
+  state.users.forEach(u=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `
+      <td>${u.name}</td>
+      <td class="mono">${u.pass}</td>
+      <td>
+        <select class="select" style="width:auto" onchange="changeUserRole('${u.id}', this.value)">
+          <option value="manager" ${u.role==='manager'?'selected':''}>運航管理</option>
+          <option value="general" ${u.role==='general'?'selected':''}>一般</option>
+          <option value="general_limited" ${u.role==='general_limited'?'selected':''}>一般（機能制限）</option>
+          <option value="viewer" ${u.role==='viewer'?'selected':''}>閲覧のみ</option>
+        </select>
+      </td>
+      <td><button class="btn ghost sm" onclick="openUser('${u.id}')">編集</button></td>`;
+    tb.appendChild(tr);
+  });
+
+  const lb=$('#logBody');
+  const filtered = filterLogs();
+  if(!filtered.length){
+    lb.innerHTML = `<tr><td colspan="5"><div class="empty">該当するログがありません。</div></td></tr>`;
+  }
+  filtered.slice(0, 100).forEach(l=>{
+    const cls = ({
+      login:'login', logout:'logout',
+      create:'', update:'edit', delete:'delete',
+      delay:'edit', divert:'maint', maint:'maint', system:'system', admin:'system'
+    })[l.type] || '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="log-time">${l.time}</td>
+      <td><span class="log-actor">${l.actor}</span></td>
+      <td><span class="log-action ${cls}">${LOG_TYPE_JA[l.type]||l.type}</span></td>
+      <td class="log-detail">${l.target||'—'}</td>
+      <td class="log-detail" style="white-space:normal;max-width:420px">${l.detail||''}</td>`;
+    lb.appendChild(tr);
+  });
+  const bindLog = (id, key) => {
+    const el = $('#'+id); if(!el) return;
+    el.oninput = ()=>{ state.logFilters[key]=el.value; render(); };
+    el.onchange = ()=>{ state.logFilters[key]=el.value; render(); };
+  };
+  bindLog('logActor','actor'); bindLog('logType','type'); bindLog('logDate','date');
+}
+function changeUserRole(id, newRole){
+  const u = state.users.find(x=>x.id===id);
+  if(!u) return;
+  const old = u.role;
+  if(old === newRole) return;
+  u.role = newRole;
+  u.visibleInAdmin = (newRole==='manager');
+  logAction('update', `権限変更: ${u.name} の権限を「${ROLE_JA[old]||old}」→「${ROLE_JA[newRole]||newRole}」`, u.name);
+  saveLocal();
+  toast(`${u.name} の権限を「${ROLE_JA[newRole]||newRole}」に変更しました。`,'ok');
+  safeSync(()=>pushUsers([u]));
+}
+function filterLogs(){
+  const f = state.logFilters;
+  const actor = f.actor.trim().toLowerCase();
+  return state.logs.filter(l=>{
+    if(f.type && l.type!==f.type) return false;
+    if(f.date && !l.time.startsWith(f.date)) return false;
+    if(actor && !l.actor.toLowerCase().includes(actor)) return false;
+    return true;
+  });
+}
+function clearLogFilters(){ state.logFilters = {actor:'', type:'', date:''}; render(); }
+
+function openUser(id){
+  const u = id ? state.users.find(x=>x.id===id) : {
+    id:'', name:'', pass:'', role:'manager'
+  };
+  showModal(`
+    <div class="modal-h"><h3>${id?'ユーザー編集':'ユーザー追加'}</h3><button class="btn ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      <div class="field"><label>ユーザー名</label><input class="input" id="uName" value="${u.name||''}"></div>
+      <div class="field"><label>パスワード</label><input class="input" id="uPass" value="${u.pass||''}"></div>
+      <div class="field"><label>権限</label>
+        <select class="select" id="uRole">
+          <option value="manager" ${u.role==='manager'?'selected':''}>運航管理</option>
+          <option value="general" ${u.role==='general'?'selected':''}>一般</option>
+          <option value="general_limited" ${u.role==='general_limited'?'selected':''}>一般（機能制限）</option>
+          <option value="viewer" ${u.role==='viewer'?'selected':''}>閲覧のみ</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-f">
+      ${id?`<button class="btn danger" onclick="deleteUser('${id}')">削除</button>`:''}
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn primary" onclick="saveUser('${id}')">保存</button>
+    </div>`);
+}
+function saveUser(id){
+  const name=$('#uName').value.trim(), pass=$('#uPass').value.trim(), role=$('#uRole').value;
+  if(!name||!pass){ toast('ユーザー名とパスワードは必須です。','err'); return; }
+  let target;
+  if(id){
+    target = state.users.find(x=>x.id===id);
+    const old = `${target.name} / ${ROLE_JA[target.role]||target.role}`;
+    Object.assign(target,{name,pass,role, visibleInAdmin:role==='manager'});
+    logAction('update', `ユーザー変更: ${old} → ${name} / ${ROLE_JA[role]||role}`, name);
+  } else {
+    target = {id:uid(), name, pass, role, visibleInAdmin: role==='manager'};
+    state.users.push(target);
+    logAction('create', `ユーザー追加: ${name} / ${ROLE_JA[role]||role}`, name);
+  }
+  state.pendingSync = true;
+  saveLocal(); closeModal(); render(); toast('ユーザーを保存しました。','ok');
+  safeSync(()=>pushUsers([target]));
+}
+function deleteUser(id){
+  if(state.session && id===state.session.id){ toast('ログイン中の自分は削除できません。','err'); return; }
+  const u = state.users.find(x=>x.id===id);
+  if(!u) return;
+  if(u.role==='manager'){
+    const managers = state.users.filter(x=>x.role==='manager');
+    if(managers.length<=1){ toast('運航管理ユーザーが0人になるため削除できません。','err'); return; }
+  }
+  logAction('delete', `ユーザー削除: ${u.name} / ${ROLE_JA[u.role]||u.role}`, u.name);
+  state.users = state.users.filter(x=>x.id!==id);
+  state.pendingSync = true;
+  saveLocal(); closeModal(); render(); toast('ユーザーを削除しました。','warn');
+  safeSync(()=>deleteUserServer(id));
+}
+
+/* ============================================================
+   入出力
+   ============================================================ */
+function viewData(c){
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-h"><h3>エクスポート</h3></div>
+        <p style="font-size:12px;color:var(--txt-dim);margin-bottom:14px">全データをJSONでダウンロードします。</p>
+        <button class="btn primary" onclick="exportJSON()">JSONをダウンロード</button>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>サーバー再同期</h3></div>
+        <p style="font-size:12px;color:var(--txt-dim);margin-bottom:14px">サーバーから最新データを再取得します。</p>
+        <button class="btn" onclick="resyncNow()">今すぐ再同期</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-h"><h3>同期状態</h3></div>
+      <p style="font-size:12px;color:var(--txt-dim)">
+        サーバー接続：<b>${state.serverConnected?'接続済み':'未接続'}</b><br>
+        同期状態：<b>${state.syncState}</b><br>
+        便：${state.flights.length} / 機材：${state.fleet.length} / ユーザー：${state.users.length} / ログ：${state.logs.length}
+      </p>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn danger" onclick="resetAll()">全データをリセット</button>
+      </div>
+    </div>`;
+  c.appendChild(wrap);
+}
+function exportJSON(){
+  const blob = new Blob([JSON.stringify({
+    flights:state.flights, fleet:state.fleet, users:state.users, logs:state.logs
+  },null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download = `nfs-backup-${todayStr()}.json`;
+  a.click();
+  logAction('system', `エクスポート: ${a.download}`, 'データ');
+  toast('エクスポートしました。','ok');
+}
+function resyncNow(){
+  toast('再同期中…','warn');
+  safeSync(async ()=>{
+    await fetchFromServer();
+    render();
+    toast('サーバーと同期しました。','ok');
+  });
+}
+function resetAll(){
+  if(!confirm('全データを初期状態に戻しますか？')) return;
+  localStorage.removeItem(LS_KEY);
+  seed();
+  render();
+  toast('リセットしました。','warn');
+}
+
+/* ============================================================
+   便モーダル
+   ============================================================ */
+function openFlight(id){
+  const editing = !!id;
+  const f = editing ? state.flights.find(x=>x.id===id) : {
+    id:'', no:'NFS'+Math.floor(Math.random()*900+100), from:BASE, to:'HND',
+    dep:'08:00', arr:'09:30', baseDep:'08:00', baseArr:'09:30',
+    date:todayStr(), ac: state.fleet[0]?.id, status:'scheduled', delayMin:0, note:''
+  };
+  if(!f.baseDep) f.baseDep = f.dep;
+  if(!f.baseArr) f.baseArr = f.arr;
+
+  if(editing && f.lock && f.lock.by!==state.session.id){
+    showModal(`
+      <div class="modal-h"><h3>編集中</h3><button class="btn ghost" onclick="closeModal()">✕</button></div>
+      <div class="modal-b"><p><b>${f.no}</b> は <b>${f.lock.by}</b> が ${f.lock.at} から編集中です。</p>
+      <p class="lock-note">⚠ 同時編集は競合防止のため禁止されています。</p></div>
+      <div class="modal-f"><button class="btn" onclick="closeModal()">閉じる</button></div>`);
+    return;
+  }
+  if(editing && canEdit()){ f.lock = {by:state.session.name, at:new Date().toLocaleTimeString('ja-JP')}; saveLocal(); }
+
+  const ro = !canEdit();
+  showModal(`
+    <div class="modal-h"><h3>${editing?'便を編集':'新規便'}</h3><button class="btn ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      ${ro?`<div class="readonly-note">閲覧のみの権限のため、この内容は変更できません。</div>`:''}
+      <div class="row-3">
+        <div class="field"><label>便名</label><input class="input" id="fNo" value="${f.no}" ${ro?'disabled':''}></div>
+        <div class="field"><label>日付</label><input class="input" id="fDate" type="date" value="${f.date}" ${ro?'disabled':''}></div>
+        <div class="field"><label>機材</label>
+          <select class="select" id="fAc" ${ro?'disabled':''}>
+            ${state.fleet.map(a=>`<option value="${a.id}" ${f.ac===a.id?'selected':''}>${a.reg} · ${a.type} · ${SERVICE_JA[a.service]}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>出発地</label>
+          <select class="select" id="fFrom" ${ro?'disabled':''}>
+            ${AIRPORTS.map(a=>`<option value="${a.code}" ${f.from===a.code?'selected':''}>${a.code} ${a.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>到着地</label>
+          <select class="select" id="fTo" ${ro?'disabled':''}>
+            ${AIRPORTS.map(a=>`<option value="${a.code}" ${f.to===a.code?'selected':''}>${a.code} ${a.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div class="pb-title">定刻（基準）</div>
+        <div class="row">
+          <div class="field" style="margin-bottom:0"><label>定刻 出発</label><input class="input" id="fBaseDep" type="time" value="${f.baseDep}" ${ro?'disabled':''}></div>
+          <div class="field" style="margin-bottom:0"><label>定刻 到着</label><input class="input" id="fBaseArr" type="time" value="${f.baseArr}" ${ro?'disabled':''}></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>遅延（分）</label>
+        <input class="input" id="fDelay" type="number" min="0" step="5" value="${f.delayMin||0}" ${ro?'disabled':''}>
+        <div class="delay-presets">
+          ${[0,15,30,45,60,90,120,180].map(n=>`<button type="button" ${ro?'disabled':''} onclick="setDelay(${n})">+${n}分</button>`).join('')}
+        </div>
+      </div>
+      <div class="preview-box" id="previewBox">
+        <div class="pb-title">実時刻（遅延反映後・自動計算）</div>
+        <div class="row">
+          <div class="field" style="margin-bottom:0"><label>実 出発</label><input class="input" id="fDep" type="time" value="${f.dep}" ${ro?'disabled':''}></div>
+          <div class="field" style="margin-bottom:0"><label>実 到着</label><input class="input" id="fArr" type="time" value="${f.arr}" ${ro?'disabled':''}></div>
+        </div>
+        <div id="diversionNote" style="margin-top:8px;font-size:12px;"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>状態</label>
+          <select class="select" id="fStatus" ${ro?'disabled':''}>
+            ${STATUS.map(s=>`<option value="${s}" ${f.status===s?'selected':''}>${STATUS_JA[s]}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>　</label>
+          <button type="button" class="btn sm" ${ro?'disabled':''} onclick="resetDelay()">遅延をリセット</button>
+        </div>
+      </div>
+      <div class="field"><label>備考</label><input class="input" id="fNote" value="${f.note||''}" ${ro?'disabled':''}></div>
+    </div>
+    <div class="modal-f">
+      ${editing && canEdit()?`<button class="btn danger" onclick="deleteFlight('${f.id}')">削除</button>`:''}
+      <button class="btn" onclick="closeModal()">${ro?'閉じる':'キャンセル'}</button>
+      ${canEdit()?`<button class="btn primary" onclick="saveFlight('${f.id}')">保存</button>`:''}
+    </div>`);
+
+  if(!ro){
+    $('#fDelay').addEventListener('input', updateFlightTimes);
+    $('#fDelay').addEventListener('change', updateFlightTimes);
+    $('#fBaseDep').addEventListener('change', updateFlightTimes);
+    $('#fBaseArr').addEventListener('change', updateFlightTimes);
+    $('#fTo').addEventListener('change', updateFlightTimes);
+  }
+  updateFlightTimes();
+}
+function setDelay(n){ const el = $('#fDelay'); if(el){ el.value = n; updateFlightTimes(); } }
+function resetDelay(){ const el = $('#fDelay'); if(el){ el.value = 0; updateFlightTimes(); } }
+function updateFlightTimes(){
+  const baseDepEl = $('#fBaseDep'), baseArrEl = $('#fBaseArr');
+  const delayEl = $('#fDelay'), depEl = $('#fDep'), arrEl = $('#fArr');
+  const toEl = $('#fTo'), noteEl = $('#diversionNote'), box = $('#previewBox');
+  if(!baseDepEl || !baseArrEl || !delayEl || !depEl || !arrEl) return;
+  const baseDep = baseDepEl.value || '08:00';
+  const baseArr = baseArrEl.value || '09:30';
+  const delay = Math.max(0, parseInt(delayEl.value||0,10) || 0);
+  const newDep = addMin(baseDep, delay);
+  const newArr = addMin(baseArr, delay);
+  depEl.value = newDep; arrEl.value = newArr;
+  const to = toEl ? toEl.value : '';
+  const isDivert = (to==='FUK' && timeToMin(newArr) >= CURFEW_MIN);
+  if(box){
+    box.classList.remove('warn','divert');
+    if(delay>0) box.classList.add('warn');
+    if(isDivert) box.classList.add('divert');
+  }
+  if(noteEl){
+    if(isDivert){
+      noteEl.innerHTML = `<span class="badge diverted">自動ダイバート</span> 福岡到着が22:00以降のため、保存すると北九州(KKJ)行きに自動変更され、後続便も連鎖します。`;
+    } else if(delay>0){
+      noteEl.innerHTML = `<span class="badge delayed">遅延 +${delay}分</span> 実時刻：${newDep}–${newArr}。保存すると後続便も自動で連鎖します。`;
+    } else {
+      noteEl.innerHTML = `<span style="color:var(--txt-faint)">遅延なし。実時刻＝定刻。</span>`;
+    }
+  }
+}
+function saveFlight(id){
+  if(!canEdit()){ toast('この操作は許可されていません。','err'); return; }
+  updateFlightTimes();
+  const data = {
+    no:$('#fNo').value.trim(), date:$('#fDate').value, ac:$('#fAc').value,
+    from:$('#fFrom').value, to:$('#fTo').value,
+    dep:$('#fDep').value, arr:$('#fArr').value,
+    baseDep:$('#fBaseDep').value, baseArr:$('#fBaseArr').value,
+    status:$('#fStatus').value,
+    delayMin:parseInt($('#fDelay').value||0,10),
+    note:$('#fNote').value.trim()
+  };
+  if(!data.no || !data.date || !data.dep || !data.arr){ toast('必須項目が未入力です。','err'); return; }
+  if(data.delayMin > 0 && data.status === 'scheduled') data.status = 'delayed';
+  if(data.delayMin === 0 && data.status === 'delayed') data.status = 'scheduled';
+
+  let prevDelay = 0;
+  if(id){ const prev = state.flights.find(x=>x.id===id); if(prev) prevDelay = prev.delayMin || 0; }
+
+  let target;
+  if(id){
+    target = state.flights.find(x=>x.id===id);
+    Object.assign(target, data); target.lock = null;
+    logAction('update', `${target.no} を編集（${target.from}→${target.to} ${target.dep}-${target.arr}${target.delayMin?' +'+target.delayMin+'分':''}）`, target.no);
+  } else {
+    target = Object.assign({id:uid()}, data, {lock:null});
+    state.flights.push(target);
+    logAction('create', `${target.no} を追加（${target.from}→${target.to} ${target.dep}-${target.arr}）`, target.no);
+  }
+
+  const delta = (target.delayMin||0) - prevDelay;
+  const diverted = applyAutoDiversion(target);
+  const touched = [];
+  if(diverted){ cascadeAfterDiversion(target, touched); }
+  else if(delta !== 0){ cascadeRotation(target, delta, touched); }
+
+  state.pendingSync = true;
+  saveLocal(); closeModal(); render();
+  if(!diverted) toast('便を保存しました。','ok');
+
+  const toSync = new Set([target, ...touched]);
+  safeSync(()=>pushFlights([...toSync]));
+}
+function deleteFlight(id){
+  if(!canEdit()){ toast('この操作は許可されていません。','err'); return; }
+  if(!confirm('この便を削除しますか？')) return;
+  const f = state.flights.find(x=>x.id===id);
+  if(f) logAction('delete', `${f.no} を削除（${f.from}→${f.to} ${f.date}）`, f.no);
+  state.flights = state.flights.filter(f=>f.id!==id);
+  state.pendingSync=true;
+  saveLocal(); closeModal(); render();
+  toast('便を削除しました。','warn');
+  safeSync(()=>deleteFlightServer(id));
+}
+function cascadeRotation(fromFlight, delta, touched){
+  if(delta === 0) return;
+  const ta = turnaroundFor(fromFlight.ac);
+  const sameAc = state.flights.filter(f=>f.ac===fromFlight.ac && f.id!==fromFlight.id);
+  const sameDay = sameAc
+    .filter(f=>f.date===fromFlight.date && timeToMin(f.dep) > timeToMin(fromFlight.dep))
+    .sort((a,b)=>timeToMin(a.dep)-timeToMin(b.dep));
+  let prevArr = timeToMin(fromFlight.arr);
+  let carried = delta;
+  sameDay.forEach(f=>{
+    const minDep = prevArr + ta;
+    const currentDep = timeToMin(f.dep);
+    const needed = Math.max(0, minDep - currentDep);
+    const addDelay = Math.max(needed, carried);
+    if(addDelay > 0){
+      f.dep = addMin(f.dep, addDelay);
+      f.arr = addMin(f.arr, addDelay);
+      f.delayMin = (f.delayMin||0) + addDelay;
+      if(f.status==='scheduled') f.status='delayed';
+      f.note = (f.note?f.note+' | ':'')+`遅延連鎖 +${addDelay}分（前便より）`;
+      touched.push(f);
+    }
+    prevArr = timeToMin(f.arr);
+    carried = addDelay;
+  });
+  const lastToday = state.flights.filter(f=>f.ac===fromFlight.ac && f.date===fromFlight.date)
+    .sort((a,b)=>timeToMin(a.arr)-timeToMin(b.arr)).pop();
+  if(!lastToday) return;
+  const d = parseDate(fromFlight.date); d.setDate(d.getDate()+1);
+  const nextDay = fmtDate(d);
+  const firstNext = state.flights.filter(f=>f.ac===fromFlight.ac && f.date===nextDay)
+    .sort((a,b)=>timeToMin(a.dep)-timeToMin(b.dep))[0];
+  if(!firstNext) return;
+  if(lastToday.to === firstNext.from){
+    const minDep = timeToMin(lastToday.arr) + ta;
+    const currentDep = timeToMin(firstNext.dep);
+    if(minDep > currentDep && minDep < 24*60){
+      const addDelay = minDep - currentDep;
+      firstNext.dep = addMin(firstNext.dep, addDelay);
+      firstNext.arr = addMin(firstNext.arr, addDelay);
+      firstNext.delayMin = (firstNext.delayMin||0) + addDelay;
+      if(firstNext.status==='scheduled') firstNext.status='delayed';
+      firstNext.note = (firstNext.note?firstNext.note+' | ':'')+`翌日連鎖 +${addDelay}分（前日最終便より）`;
+      touched.push(firstNext);
+    }
+  }
+}
+function applyAutoDiversion(f){
+  if(f.status==='diverted' && f.to==='KKJ') return false;
+  if(f.to!=='FUK') return false;
+  if(timeToMin(f.arr) < CURFEW_MIN) return false;
+  f.to = 'KKJ';
+  f.status = 'diverted';
+  f.note = (f.note?f.note+' | ':'') + '自動ダイバート：福岡カーフュー（22:00以降到着）';
+  logAction('divert', `${f.no} を北九州(KKJ)へ自動ダイバート（福岡22:00以降到着）`, f.no);
+  toast(`${f.no} を北九州(KKJ)へ自動ダイバートしました。`,'warn');
+  return true;
+}
+function cascadeAfterDiversion(divertedFlight, touched){
+  const later = state.flights.filter(x=>
+    x.ac===divertedFlight.ac && x.date===divertedFlight.date &&
+    x.id!==divertedFlight.id && timeToMin(x.dep) > timeToMin(divertedFlight.dep)
+  );
+  if(later.length){
+    later.forEach(x=>{
+      x.status='cancelled';
+      x.note=(x.note?x.note+' | ':'')+'欠航：機材が北九州へダイバート';
+      if(x.lock) x.lock=null;
+      touched.push(x);
+    });
+    logAction('divert', `ダイバート連鎖で後続 ${later.length} 便を欠航: ${later.map(x=>x.no).join(', ')}`, divertedFlight.no);
+    toast(`後続 ${later.length} 便を欠航にしました。`,'warn');
+    return;
+  }
+  const d = parseDate(divertedFlight.date); d.setDate(d.getDate()+1);
+  const nextDay = fmtDate(d);
+  const exists = state.flights.some(x=>x.ac===divertedFlight.ac && x.date===nextDay && x.from==='KKJ' && x.to==='FUK');
+  if(exists) return;
+  const ferry = {
+    id:uid(), no:'NFS'+Math.floor(Math.random()*9000+1000),
+    from:'KKJ', to:'FUK', dep:'06:00', arr:'06:50', baseDep:'06:00', baseArr:'06:50',
+    date:nextDay, ac:divertedFlight.ac, status:'scheduled', delayMin:0,
+    note:'回航：機材を福岡へ戻す', lock:null
+  };
+  state.flights.push(ferry);
+  touched.push(ferry);
+  logAction('divert', `回航便 ${ferry.no} (KKJ→FUK 06:00-06:50) を ${nextDay} に自動作成`, ferry.no);
+  toast(`翌日 ${nextDay} 06:00 に KKJ→FUK 回航便を設定しました。`,'warn');
+  const first = state.flights.filter(x=>x.ac===divertedFlight.ac && x.date===nextDay && x.id!==ferry.id)
+    .sort((a,b)=>a.dep.localeCompare(b.dep))[0];
+  if(first){
+    const ta = turnaroundFor(divertedFlight.ac);
+    const minDep = timeToMin(ferry.arr) + ta;
+    if(timeToMin(first.dep) < minDep){
+      const newDep = addMin(ferry.arr, ta);
+      const dur = timeToMin(first.arr) - timeToMin(first.dep);
+      const newArr = addMin(newDep, dur);
+      first.baseDep = first.baseDep || first.dep;
+      first.baseArr = first.baseArr || first.arr;
+      const addDelay = timeToMin(newDep) - timeToMin(first.dep);
+      first.dep = newDep; first.arr = newArr;
+      first.status = 'delayed';
+      first.delayMin = (first.delayMin||0) + addDelay;
+      first.note = (first.note?first.note+' | ':'')+'遅延：回航便到着待ち';
+      touched.push(first);
+    }
+  }
+}
+
+/* ============================================================
+   機材モーダル
+   ============================================================ */
+function openAircraft(id){
+  const editing = !!id;
+  const a = editing ? state.fleet.find(x=>x.id===id) : {
+    id:'', reg:'JA'+Math.floor(Math.random()*90+10)+'NF', type:AIRCRAFT_TYPES[0],
+    status:'active', base:BASE, service:'domestic', maintStart:null, maintEnd:null
+  };
+  const ro = !canEditFleet();
+  showModal(`
+    <div class="modal-h"><h3>${editing?'機材を編集':'新規機材'}</h3><button class="btn ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      ${ro?`<div class="readonly-note">機材の編集は運航管理のみ可能です。</div>`:''}
+      <div class="row">
+        <div class="field"><label>登録記号</label><input class="input" id="aReg" value="${a.reg}" ${ro?'disabled':''}></div>
+        <div class="field"><label>型式</label>
+          <select class="select" id="aType" ${ro?'disabled':''}>
+            ${AIRCRAFT_TYPES.map(t=>`<option ${a.type===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>用途</label>
+          <select class="select" id="aService" ${ro?'disabled':''}>
+            <option value="domestic" ${a.service==='domestic'?'selected':''}>国内線</option>
+            <option value="international" ${a.service==='international'?'selected':''}>国際線</option>
+          </select>
+        </div>
+        <div class="field"><label>状態</label>
+          <select class="select" id="aStatus" ${ro?'disabled':''}>
+            ${['active','maintenance','reserve'].map(s=>`<option value="${s}" ${a.status===s?'selected':''}>${FLEET_STATUS_JA[s]}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>拠点</label>
+        <select class="select" id="aBase" ${ro?'disabled':''}>
+          ${AIRPORTS.map(x=>`<option value="${x.code}" ${a.base===x.code?'selected':''}>${x.code} ${x.name}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="modal-f">
+      ${editing && canEditFleet() && a.status==='active'?`<button class="btn danger" onclick="deleteAircraft('${a.id}')">削除</button>`:''}
+      <button class="btn" onclick="closeModal()">${ro?'閉じる':'キャンセル'}</button>
+      ${canEditFleet()?`<button class="btn primary" onclick="saveAircraft('${a.id}')">保存</button>`:''}
+    </div>`);
+}
+function saveAircraft(id){
+  if(!canEditFleet()){ toast('この操作は許可されていません。','err'); return; }
+  const data = { reg:$('#aReg').value.trim(), type:$('#aType').value, service:$('#aService').value, status:$('#aStatus').value, base:$('#aBase').value };
+  if(!data.reg){ toast('登録記号は必須です。','err'); return; }
+  let target;
+  if(id){
+    target = state.fleet.find(x=>x.id===id);
+    const before = `${target.reg}/${target.type}/${SERVICE_JA[target.service]}/${FLEET_STATUS_JA[target.status]}`;
+    Object.assign(target, data);
+    const after = `${target.reg}/${target.type}/${SERVICE_JA[target.service]}/${FLEET_STATUS_JA[target.status]}`;
+    logAction('update', `機材変更: ${before} → ${after}`, target.reg);
+  } else {
+    target = {id:uid(), ...data, maintStart:null, maintEnd:null};
+    state.fleet.push(target);
+    logAction('create', `機材追加: ${target.reg}/${target.type}/${SERVICE_JA[target.service]}/${FLEET_STATUS_JA[target.status]}`, target.reg);
+  }
+  state.pendingSync=true;
+  saveLocal(); closeModal(); render(); toast('機材を保存しました。','ok');
+  safeSync(()=>pushFleet([target]));
+}
+function deleteAircraft(id){
+  if(!canEditFleet()){ toast('この操作は許可されていません。','err'); return; }
+  const n = state.flights.filter(f=>f.ac===id).length;
+  if(n){ toast(`削除できません：${n} 便が割り当てられています。`,'err'); return; }
+  if(!confirm('この機材を削除しますか？')) return;
+  const a = state.fleet.find(x=>x.id===id);
+  if(a) logAction('delete', `機材削除: ${a.reg}/${a.type}`, a.reg);
+  state.fleet = state.fleet.filter(a=>a.id!==id);
+  state.pendingSync=true;
+  saveLocal(); closeModal(); render(); toast('機材を削除しました。','warn');
+  safeSync(async ()=>{
+    if(state.supabase){
+      const {error} = await state.supabase.from('fleet').delete().eq('id', id);
+      if(error) console.error(error);
+    }
+  });
+}
+
+/* ============================================================
+   日別一覧
+   ============================================================ */
+function openDay(ds){
+  const list = applyFilters(state.flights.filter(f=>f.date===ds)).sort((a,b)=>a.dep.localeCompare(b.dep));
+  showModal(`
+    <div class="modal-h"><h3>${ds} · ${list.length} 便</h3><button class="btn ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b" style="padding:0">
+      <div class="table-wrap">
+        <table><thead><tr><th>時刻</th><th>便名</th><th>区間</th><th>機材</th><th>状態</th></tr></thead>
+        <tbody>
+          ${list.length?list.map(f=>`<tr onclick="closeModal();openFlight('${f.id}')" style="cursor:pointer">
+            <td class="mono"><b>${f.dep}</b>–${f.arr}</td>
+            <td class="mono">${f.no}</td><td class="mono">${f.from}→${f.to}</td>
+            <td class="mono">${acReg(f.ac)}</td><td>${statusBadge(f)}</td></tr>`).join('')
+            :`<tr><td colspan="5"><div class="empty">便がありません。</div></td></tr>`}
+        </tbody></table>
+      </div>
+    </div>`);
+}
+
+/* ============================================================
+   モーダル制御
+   ============================================================ */
+function showModal(html){ $('#modal').innerHTML = html; $('#overlay').classList.add('show'); }
+function closeModal(){
+  $('#overlay').classList.remove('show');
+  let changed=false;
+  state.flights.forEach(f=>{ if(f.lock && f.lock.by===state.session?.name){ f.lock=null; changed=true; } });
+  if(changed) saveLocal();
+}
+$('#overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+/* ============================================================
+   監査ログ（同期）
+   ============================================================ */
+const LOG_TYPE_JA = {
+  login:'ログイン', logout:'ログアウト',
+  create:'追加', update:'編集', delete:'削除',
+  delay:'遅延', divert:'ダイバート', maint:'整備',
+  system:'システム', admin:'管理',
+};
+function logAction(type, detail, target=''){
+  const actor = state.session ? state.session.name : 'system';
+  const entry = {
+    id: uid(), time: nowStamp(), actor,
+    role: state.session ? state.session.role : '-',
+    type, target, detail, synced: true
+  };
+  state.logs.unshift(entry);
+  if(state.logs.length > 500) state.logs = state.logs.slice(0, 500);
+  saveLocal();
+  safeSync(()=>pushLog(entry));
+}
+
+/* ============================================================
+   Supabase（遅延接続 / 安全ラッパ）
+   ============================================================ */
+function safeSync(fn){
+  if(!state.supabase){
+    // サーバー未接続：ローカルだけに保存
+    return;
+  }
+  try{
+    Promise.resolve(fn()).catch(e=>{
+      console.warn('sync failed (ignored):', e);
+    });
+  }catch(e){
+    console.warn('sync threw (ignored):', e);
+  }
+}
+
+function initSupabase(){
+  try{
+    if(!window.supabase || !window.supabase.createClient){
+      console.warn('Supabase SDK 未読込');
+      state.serverConnected = false;
+      setSyncState('offline');
+      updateLoginSyncText('サーバー未接続（ローカルモード）');
+      return;
+    }
+    state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      realtime: { params: { eventsPerSecond: 10 } }
+    });
+    setSyncState('connecting');
+    updateLoginSyncText('サーバーに接続中…');
+  }catch(e){
+    console.error('Supabase init error', e);
+    state.supabase = null;
+    state.serverConnected = false;
+    setSyncState('error');
+    updateLoginSyncText('サーバー接続エラー（ローカルモード）');
+  }
+}
+
+async function fetchFromServer(){
+  if(!state.supabase) return false;
+  try{
+    setSyncState('syncing');
+
+    const [fl, flt, usr, lg] = await Promise.all([
+      state.supabase.from('flights').select('*'),
+      state.supabase.from('fleet').select('*'),
+      state.supabase.from('app_users').select('*'),
+      state.supabase.from('audit_logs').select('*').order('created_at',{ascending:false}).limit(500)
+    ]);
+
+    if(fl.error || flt.error || usr.error || lg.error){
+      console.warn('fetch had errors', fl.error, flt.error, usr.error, lg.error);
+      // どれか1つでもエラーならサーバー扱いにしない（ローカル優先）
+      state.serverConnected = false;
+      setSyncState('error');
+      updateLoginSyncText('サーバーデータ未整備（ローカルモード）');
+      return false;
+    }
+
+    if(fl.data && fl.data.length){
+      state.flights = fl.data.map(f=>({
+        id:f.id, no:f.no, from:f.from_ap, to:f.to_ap,
+        dep:f.dep, arr:f.arr, baseDep:f.base_dep, baseArr:f.base_arr,
+        date:f.date, ac:f.ac, status:f.status,
+        delayMin:f.delay_min||0, note:f.note||'', lock:null
+      }));
+    }
+    if(flt.data && flt.data.length){
+      state.fleet = flt.data.map(a=>({
+        id:a.id, reg:a.reg, type:a.type, status:a.status,
+        base:a.base, service:a.service||'domestic',
+        maintStart:a.maint_start, maintEnd:a.maint_end,
+        assignedTo:a.assigned_to
+      }));
+    }
+    if(usr.data && usr.data.length){
+      state.users = usr.data.map(u=>({
+        id:u.id, name:u.name, pass:u.pass, role:u.role,
+        visibleInAdmin:u.visible_in_admin
+      }));
+    }
+    if(lg.data){
+      state.logs = lg.data.map(l=>({
+        id:l.id, time:l.time, actor:l.actor, role:l.role,
+        type:l.type, target:l.target, detail:l.detail, synced:true
+      }));
+    }
+
+    state.serverConnected = true;
+    state.pendingSync = false;
+    saveLocal();
+    setSyncState('online');
+    updateLoginSyncText('サーバー同期済み');
+    return true;
+  }catch(e){
+    console.error('fetch failed', e);
+    state.serverConnected = false;
+    setSyncState('error');
+    updateLoginSyncText('サーバー未接続（ローカルモード）');
+    return false;
+  }
+}
+
+async function pushFlights(list){
+  if(!state.supabase || !list.length) return;
+  const payload = list.map(f=>({
+    id:f.id, no:f.no, from_ap:f.from, to_ap:f.to,
+    dep:f.dep, arr:f.arr, base_dep:f.baseDep, base_arr:f.baseArr,
+    date:f.date, ac:f.ac, status:f.status,
+    delay_min:f.delayMin||0, note:f.note||''
+  }));
+  const {error} = await state.supabase.from('flights').upsert(payload);
+  if(error) throw error;
+}
+async function deleteFlightServer(id){
+  if(!state.supabase) return;
+  const {error} = await state.supabase.from('flights').delete().eq('id', id);
+  if(error) throw error;
+}
+async function pushFleet(list){
+  if(!state.supabase || !list.length) return;
+  const payload = list.map(a=>({
+    id:a.id, reg:a.reg, type:a.type, status:a.status, base:a.base,
+    service:a.service||'domestic',
+    maint_start:a.maintStart||null, maint_end:a.maintEnd||null,
+    assigned_to:a.assignedTo||null
+  }));
+  const {error} = await state.supabase.from('fleet').upsert(payload);
+  if(error) throw error;
+}
+async function pushUsers(list){
+  if(!state.supabase || !list.length) return;
+  const payload = list.map(u=>({
+    id:u.id, name:u.name, pass:u.pass, role:u.role,
+    visible_in_admin: u.visibleInAdmin!==false
+  }));
+  const {error} = await state.supabase.from('app_users').upsert(payload);
+  if(error) throw error;
+}
+async function deleteUserServer(id){
+  if(!state.supabase) return;
+  const {error} = await state.supabase.from('app_users').delete().eq('id', id);
+  if(error) throw error;
+}
+async function pushLog(entry){
+  if(!state.supabase) return;
+  const payload = {
+    id: entry.id, time: entry.time, actor: entry.actor, role: entry.role,
+    type: entry.type, target: entry.target, detail: entry.detail, synced: true
+  };
+  const {error} = await state.supabase.from('audit_logs').upsert(payload);
+  if(error) throw error;
+}
+
+function subscribeRealtime(){
+  if(!state.supabase) return;
+  try{
+    state.realtimeChannel = state.supabase
+      .channel('nfs-sync')
+      .on('postgres_changes', {event:'*', schema:'public', table:'flights'}, async ()=>{
+        try{
+          await fetchFromServer();
+          if(state.session) render();
+        }catch(e){ console.warn(e); }
+      })
+      .on('postgres_changes', {event:'*', schema:'public', table:'fleet'}, async ()=>{
+        try{ await fetchFromServer(); if(state.session) render(); }catch(e){ console.warn(e); }
+      })
+      .on('postgres_changes', {event:'*', schema:'public', table:'app_users'}, async ()=>{
+        try{ await fetchFromServer(); if(state.session) render(); }catch(e){ console.warn(e); }
+      })
+      .subscribe((status)=>{
+        console.log('RT status', status);
+        if(status==='SUBSCRIBED') setSyncState('online');
+      });
+  }catch(e){ console.warn('realtime error', e); }
+}
+
+/* ============================================================
+   オンライン / オフライン
+   ============================================================ */
+window.addEventListener('online', ()=>{
+  state.online = true;
+  if(state.serverConnected) setSyncState('online');
+  else if(state.supabase) setSyncState('connecting');
+});
+window.addEventListener('offline', ()=>{ state.online=false; setSyncState('offline'); });
+
+/* ============================================================
+   起動
+   ============================================================ */
+function boot(){
+  $('#login').style.display='none';
+  $('#app').style.display='flex';
+  $('#userName').textContent = state.session.name;
+  $('#userRole').textContent = ROLE_JA[state.session.role] || state.session.role;
+  $('#userAvatar').textContent = state.session.name[0];
+  renderNav(); render();
+}
+
+(function init(){
+  try {
+    // STEP 1: まずローカルデータを読み込んで、必ずログインできるようにする
+    const hasLocal = loadLocal();
+    if(!state.users || !state.users.length || !state.fleet || !state.fleet.length){
+      seed();
+    }
+    if(!Array.isArray(state.logs)) state.logs = [];
+
+    // STEP 2: ログイン画面を表示（サーバーを待たない）
+    if(state.session && state.session.id){
+      boot();
+    } else {
+      $('#login').style.display='flex';
+    }
+    updateLoginSyncText('ローカルデータ準備完了（サーバー接続中…）');
+
+    // STEP 3: 裏で Supabase 接続（失敗してもUIは止めない）
+    setTimeout(async ()=>{
+      initSupabase();
+      if(!state.supabase){
+        updateLoginSyncText('サーバー未接続（ローカルモード）');
+        return;
+      }
+      const ok = await fetchFromServer();
+      if(!ok){
+        updateLoginSyncText('サーバー未接続（ローカルモードで動作中）');
+        return;
+      }
+      // サーバーが空なら初期データ投入
+      if(!state.users.length || !state.fleet.length || !state.flights.length){
+        try{
+          await pushFleet(state.fleet);
+          await pushUsers(state.users);
+          await pushFlights(state.flights);
+        }catch(e){ console.warn('initial push failed', e); }
+      }
+      // Realtime購読
+      subscribeRealtime();
+      // 再描画
+      if(state.session) render();
+    }, 100);
+
+  } catch(err){
+    console.error('初期化エラー:', err);
+    // 最悪のケース：ローカルも壊れてる → 強制リセット
+    try{
+      localStorage.removeItem(LS_KEY);
+      seed();
+      $('#login').style.display='flex';
+      updateLoginSyncText('ローカルモードで起動しました');
+    }catch(e2){
+      document.body.innerHTML = '<div style="padding:40px;color:#fff;font-family:sans-serif"><h2>初期化に失敗しました</h2><pre style="color:#f87171;margin-top:12px">'+err.message+'</pre></div>';
+    }
+  }
+})();
+</script>
+</body>
+</html>
